@@ -1,6 +1,6 @@
 ## lichen lto model
 ##
-## First edit: 20190319
+## First edit: 20190605
 ## Last edit: 20190603
 ##
 ## Author: Julian Klein
@@ -10,56 +10,42 @@ model{
   ## Likelihood:
   
   ## Observation model:
-  for(k in 1:nspecies){
-    for(p in 1:nplot){
+  for(p in 1:nplot){
+    for(k in 1:nrep){
       for(i in 1:ntree[p]){
-        obs[i,k,p] ~ dbern(p_occ[i,k,p])
-        logit(p_occ[i,k,p]) <- alpha_plot_mean[k] + plot_effect[k,p] + 
-                               beta_dbh[k]*stem_dbh[i,p] +
-                               beta_td[k]*td[p,1] +
-                               beta_td_quad[k]*td[p,1]^2
-      }
-    }
-  }
+        
+        obs[i,k,p] ~ dpois(lambda_obs[i,k,p])
+        log(lambda_obs[i,k,p]) <- (plot_richness[p]*i)/(sat_speed[p] + i)
   
-  ## Plot level:
-  for(k in 1:nspecies){
-    for(p in 1:nplot){
-      plot_effect[k,p] ~ dnorm(0, tau_plot[k])
-      # mu[k,p] <- alpha_plot_mean[k] +
-                 # beta_ud[k]*ud[p,1] +
-                 # beta_ud_quad[k]*ud[p,1]^2 +
-                 # beta_cd[k]*cd[p,1] +
-                 # beta_cd_quad[k]*cd[p,1]^2 +
-                 # beta_td[k]*td[p,1] +
-                 # beta_td_quad[k]*td[p,1]^2
-    }
+  }}}
+  
+  ## Process model:
+  for(p in 1:nplot){
+    
+    plot_richness[p] ~ dpois(lambda_rich[p])
+    log(lambda_rich[p]) <- alpha_rich + 
+                           beta_dec_rich*dec[p,1] + 
+                           beta_dbh_rich*dbh[p,1]
+    sat_speed[p] ~ dpois(lambda_sat[p])
+    log(lambda_sat[p]) <- alpha_sat + 
+                          beta_dec_sat*dec[p,1] +
+                          beta_dbh_sat*dbh[p,1]
   }
   
   ## Priors:
   
-  for(k in 1:nspecies){
-    beta_dbh[k] ~ dnorm(0, 0.001)
-    alpha_plot_mean[k] ~ dnorm(0, 0.001)
-    # beta_ud[k] ~ dnorm(0, 0.001)
-    # beta_ud_quad[k] ~ dnorm(0, 0.001)
-    # beta_cd[k] ~ dnorm(0, 0.001)
-    # beta_cd_quad[k] ~ dnorm(0, 0.001)
-    beta_td[k] ~ dnorm(0, 0.001)
-    beta_td_quad[k] ~ dnorm(0, 0.001)
-    tau_plot[k] <- 1/sigma_plot[k]^2
-    sigma_plot[k] ~ dgamma(0.001, 0.001) T(0.0001, 50)
-  }
-  
+  alpha_rich ~ dnorm(0, 0.001)
+  alpha_sat ~ dnorm(0, 0.001)
+  beta_dec_rich ~ dnorm(0, 0.001)
+  beta_dec_sat ~ dnorm(0, 0.001)
+  beta_dbh_rich ~ dnorm(0, 0.001)
+  beta_dbh_sat ~ dnorm(0, 0.001)
+  # tau_plot[k] <- 1/sigma_plot^2
+  # sigma_plot[k] ~ dgamma(0.001, 0.001)
+
   ## Model validation:
 
   ## Predictions:
-  
-  for(k in 1:nspecies){
-    # ud_max[k] <- -beta_ud[k]/(2*beta_ud_quad[k])
-    # cd_max[k] <- -beta_cd[k]/(2*beta_cd_quad[k])
-    td_max[k] <- -beta_td[k]/(2*beta_td_quad[k])
-  }
   
 }
 

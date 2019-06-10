@@ -1,0 +1,10 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+/data
+/clean_from_occ_folder
+/figures
+/results
+/temp
+

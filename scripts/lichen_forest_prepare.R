@@ -18,6 +18,8 @@ library(data.table)
 ## 2. Load and explore data ----------------------------------------------------
 
 l_obs <- as.data.table(read.csv("data/Data_lavar_Almunge15_March_2019.csv"))
+f_subplot <- read.csv("data/forest_data_uppland_subplot.csv")
+f_plot <- read.csv("data/forest_data_uppland_plot.csv")
 
 ## 3. Create list of matrices per plot that goes into the shuffeling ----------- 
 
@@ -25,15 +27,13 @@ l_obs <- as.data.table(read.csv("data/Data_lavar_Almunge15_March_2019.csv"))
 l_obs <- l_obs[l_obs$Tree.species != "check", ]
 
 ## Change names of plot and circles for consistency with forest data:
-
 colnames(l_obs)[2] <- "plot"
 l_obs$plot <- as.factor(paste0("plot_", l_obs$plot))
-
 colnames(l_obs)[3] <- "circle_10m"
 levels(l_obs$circle_10m) <- c("middle", "east", "west")
 
 ## Reduce to trees of known species:
-l_obs <- l_obs[!is.na(l_obs$Tree.species),]
+l_obs <- droplevels(l_obs[!is.na(l_obs$Tree.species), ])
 
 ## Reduce l_obs to only uncut trees:
 l_obs <- l_obs[!is.na(l_obs$Tree.no), c(2:7, 10:14, 17:137)]
@@ -64,12 +64,12 @@ lo_list <- lapply(lo_list, function(x) x[, colSums(x) != 0])
 ## 4. Create the data set which is needed to fit the accumultation curve:
 
 ## How many shuffelings?
-S <- 10
+S <- 100
 
 ## Define the function:
 sac_create <- function(x) {
   
-  out <- matrix(NA, nrow(x), S)
+  out <- matrix(NA, max(l_obs$Tree.no), S)
   for(i in 1:S) {
     ## Select random rows in x:
     D <- x[sample(nrow(x)), ]
@@ -83,56 +83,46 @@ sac_create <- function(x) {
 ## Apply the function:
 l_sac <- lapply(lo_list, sac_create)
 
-## 4. Merge the different lichen data sets with forest data adjusted for ------- 
-##    this question.
+## Store order of the list elements for ordering forest data:
+plot_order <- names(l_sac)
 
-## From plot level We want to have the average dbh per plot as a proxy for age
-## and the laser measurement:
-lof_tree <- merge(l_occ, 
-                  f_plot[, c(1, 11:14, 16:20)],
-                  all.x = TRUE,
-                  by = c("plot"))
+## Turn l_sac into an array:
+sad <- array(unlist(l_sac), dim = c(max(lengths(l_sac)/S), S, length(l_sac)))
+
+## 4. Make a data frame with the tree data with the same plot order as the -----
+##    list above
+
+lof_tree <- as.data.table(l_obs[, c(1:2, 8:9)])
+lt_red <- lof_tree[, list("circle_10m" = unique(circle_10m),
+                          "pine" = sum(Tree.species == "Ps")/nrow(.SD),
+                          "spruce" = sum(Tree.species == "Pa")/nrow(.SD),
+                          "dbh" = mean(Tree.diameter.130.cm.above.ground,
+                                       na.rm = TRUE)),
+                   by = "plot"]
+lt_red$dec <- 1-(lt_red$pine + lt_red$spruce)
+
+## From plot level We want to have the average dbh per plot as a proxy for age:
+lof_tree <- merge(lt_red, f_plot[, c(1, 20)], all.x = TRUE, by = "plot")
 
 ## Then we want to add from the subplot level, the lidar measurments:
 lof_tree <- merge(lof_tree,
-                  f_subplot[, c(1:2, 6:9)],
+                  f_subplot[f_subplot$buffer == 10, c(1:2, 6:8)],
                   all.x = TRUE,
                   by = c("plot", "circle_10m"),
                   allow.cartesian = TRUE)
 
-# ## Bin all deciduous tree species into trivial and complex:
-# levels(lof_tree$tree_sp)[levels(lof_tree$tree_sp) %in% 
-#                            c("Ag", "Bp")] <- "Dc_trivial"
-# levels(lof_tree$tree_sp)[levels(lof_tree$tree_sp) %in% 
-#                            c("Qr", "Pt")] <- "Dc_complex"
-# levels(lof_tree$tree_sp)[levels(lof_tree$tree_sp) %in%
-#                            c("Dc_complex", "Dc_trivial")] <- "Dc"
+## Change the order of lof_tree according to l_sac above:
+lof_tree <- lof_tree[order(match(plot, plot_order))]
 
-## 5. Export clean data sets used in the jags models here: --------------------- 
+## Check if the order of l_sac and lof_tree are the same:
+all(lof_tree$plot == names(l_sac))
+
+## 5. Store the data sets used in the jags models here: ------------------------ 
 
 dir.create("clean")
 
 ## Export:
-
-lof_tree[lof_tree$buffer == 10 & lof_tree$Stem.S.Branches.B.T.Total == "T",
-         c(15, 1, 10, 5, 13, 3, 9, 11:12, 16:25, 27:29)] %>% 
-  write.csv(., "clean/lto_T_10.csv")
-lof_tree[lof_tree$buffer == 10 & lof_tree$Stem.S.Branches.B.T.Total == "B",
-         c(15, 1, 10, 5, 13, 3, 9, 11:12, 16:25, 27:29)] %>%   
-  write.csv(., "clean/lto_B_10.csv")
-lof_tree[lof_tree$buffer == 10 & lof_tree$Stem.S.Branches.B.T.Total == "S",
-         c(15, 1, 10, 5, 13, 3, 9, 11:12, 16:25, 27:29)] %>%   
-  write.csv(., "clean/lto_S_10.csv")
-
-lof_tree[lof_tree$buffer == 50 & lof_tree$Stem.S.Branches.B.T.Total == "T",
-         c(15, 1, 10, 5, 13, 3, 9, 11:12, 16:25, 27:29)] %>% 
-  write.csv(., "clean/lto_T_50.csv")
-lof_tree[lof_tree$buffer == 50 & lof_tree$Stem.S.Branches.B.T.Total == "B",
-         c(15, 1, 10, 5, 13, 3, 9, 11:12, 16:25, 27:29)] %>%   
-  write.csv(., "clean/lto_B_50.csv")
-lof_tree[lof_tree$buffer == 50 & lof_tree$Stem.S.Branches.B.T.Total == "S",
-         c(15, 1, 10, 5, 13, 3, 9, 11:12, 16:25, 27:29)] %>%   
-  write.csv(., "clean/lto_S_50.csv")
-
+save(sad, file = "clean/species_accumulation_data.rda")
+save(lof_tree, file = "clean/sad_forest_part.rda")
 
 ## -------------------------------END-------------------------------------------
