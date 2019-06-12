@@ -1,7 +1,7 @@
 ## lichen lto model
 ##
 ## First edit: 20190605
-## Last edit: 20190603
+## Last edit: 20190612
 ##
 ## Author: Julian Klein
 
@@ -26,6 +26,7 @@ model{
     log(lambda_rich[p]) <- alpha_rich + 
                            beta_dec_rich*dec[p,1] + 
                            beta_dbh_rich*dbh[p,1]
+    
     sat_speed[p] ~ dpois(lambda_sat[p])
     log(lambda_sat[p]) <- alpha_sat + 
                           beta_dec_sat*dec[p,1] +

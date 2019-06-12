@@ -3,7 +3,7 @@
 ## We put an explanatory variable on both the half saturation and the asymptote 
 ##
 ## First edit: 20190605
-## Last edit: 20190610
+## Last edit: 20190612
 ##
 ## Author: Julian Klein
 
@@ -40,9 +40,11 @@ backscale <- function(pred_data, model_input_data) {
 dir("clean")
 
 load("clean/species_accumulation_data.rda")
-load("clean/sad_forest_part.rda")
+load("clean/sad_tree_part.rda")
 str(sad)
-str(lof_tree)
+str(sad_tree)
+
+capture.output(cor(sad_tree[, 2:6])) %>% write(., "results/cor_lpsac.txt")
 
 ## 4. The model ----------------------------------------------------------------
 
@@ -54,36 +56,37 @@ data <- list(nrep = dim(sad)[2],
              nplot = dim(sad)[3],
              ntree = ntree,
              obs = sad,
-             dec = scale(lof_tree$dec),
-             dbh = scale(lof_tree$dbh))
+             dec = scale(sad_tree$dec),
+             nr_tsp = scale(sad_tree$nr_tsp),
+             dbh = scale(sad_tree$dbh))
 
 str(data)
 
 ## Prepare inits:
 
-inits <-list(list(plot_richness = rep(20, data$nplot),
-                  sat_speed = rep(5, data$nplot),
-                  alpha_rich = 0,
-                  alpha_sat = 0,
-                  beta_dec_rich = 0.2,
-                  beta_dec_sat = 0.1,
-                  beta_dbh_rich = 0.2,
-                  beta_dbh_sat = 0.1))
+inits <- list(list(plot_richness = rep(20, data$nplot),
+                   sat_speed = rep(5, data$nplot),
+                   alpha_rich = 0,
+                   alpha_sat = 0,
+                   beta_dec_rich = 0.2,
+                   beta_dec_sat = 0.1,
+                   beta_dbh_rich = 0.2,
+                   beta_dbh_sat = 0.1))
 
-model <- "scripts/JAGS/lichen_JAGS_ltsac.R"
+model <- "scripts/JAGS/lichen_JAGS_lpsac.R"
 
 jm <- jags.model(model,
                  data = data,
-                 n.adapt = 5000, 
+                 n.adapt = 500, 
                  inits = inits, 
                  n.chains = 1) 
 
-burn.in <-  10000
+burn.in <-  1000
 
 update(jm, n.iter = burn.in) 
 
-samples <- 10000
-n.thin <- 5
+samples <- 50000
+n.thin <- 25
 
 zc <- coda.samples(jm,
                    variable.names = c("alpha_rich",
@@ -97,16 +100,16 @@ zc <- coda.samples(jm,
 
 ## Export parameter estimates:
 capture.output(summary(zc), HPDinterval(zc, prob = 0.95)) %>% 
-  write(., "results/parameters.txt")
+  write(., "results/parameters_lpsac.txt")
 
 ## 5. Validate the model and export validation data and figures ----------------
 
-pdf("figures/plot_zc.pdf")
+pdf("figures/plot_zc_lpsac.pdf")
 plot(zc)
 dev.off()
 
 capture.output(raftery.diag(zc), heidel.diag(zc)) %>% 
-  write(., "results/diagnostics.txt")
+  write(., "results/diagnostics_lpsac.txt")
 
 ## 6. Produce and export figures -----------------------------------------------
 
