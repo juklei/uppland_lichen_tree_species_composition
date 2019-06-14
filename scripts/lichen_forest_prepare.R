@@ -112,11 +112,6 @@ sad_tree$dec <- 1-(sad_tree$pine + sad_tree$spruce)
 ## Check if the order of l_sac and sad_tree are the same:
 all(sad_tree$plot == names(l_sac))
 
-
-
-
-
-
 ## 6. Store the data sets used in the jags models here: ------------------------ 
 
 dir.create("clean")

@@ -27,6 +27,9 @@ dir.create("figures")
 ## Print all rows for mcmc outputs
 options(max.print = 10E5)
 
+## Coefficient of variation:
+CV <- function(x) sd(x, na.rm = TRUE)/mean(x, na.rm = TRUE)
+
 ## Backscale function
 backscale <- function(pred_data, model_input_data) {
   
@@ -60,6 +63,14 @@ data <- list(nrep = dim(sad)[2],
              nr_tsp = scale(sad_tree$nr_tsp),
              dbh = scale(sad_tree$dbh))
 
+## Add prediction data:
+
+## Percent deciduous:
+data$dec_pred <- seq(min(data$dec), max(data$dec), 0.05)
+
+## Nr. of tree species:
+data$dec_pred <- seq(min(data$dec), max(data$dec), 0.05)
+
 str(data)
 
 ## Prepare inits:
@@ -85,8 +96,8 @@ burn.in <-  1000
 
 update(jm, n.iter = burn.in) 
 
-samples <- 50000
-n.thin <- 25
+samples <- 1000
+n.thin <- 10
 
 zc <- coda.samples(jm,
                    variable.names = c("alpha_rich",
@@ -110,6 +121,40 @@ dev.off()
 
 capture.output(raftery.diag(zc), heidel.diag(zc)) %>% 
   write(., "results/diagnostics_lpsac.txt")
+
+## Produce validation metrics:
+zj_val <- jags.samples(jm,
+                       variable.names = c("obs_sim"),
+                       n.iter = 1000,
+                       thin = 10)
+
+## Plot the accumulation data per plot (plot in third dimesnion in array):
+
+## Extract the mean of the simulated values:
+dsp <- summary(zj_val$obs_sim, mean)$stat
+
+dev.off()
+
+pdf("figures/sim_vs_obs.pdf")
+
+par(mfrow = c(3, 2))
+
+for(i in 1:data$nplot) {
+
+## Sim data:
+plot(rep(which(!is.na(dsp[,1,i])), dim(dsp)[2]), 
+     na.omit(as.vector(dsp[,,i])), 
+     col = "red", 
+     xlab = "tree", 
+     ylab = "richness")
+
+## Real data:
+points(rep(which(!is.na(sad[,1,i])), dim(sad)[2]), 
+       na.omit(as.vector(sad[,,i])))
+
+}
+
+dev.off()
 
 ## 6. Produce and export figures -----------------------------------------------
 

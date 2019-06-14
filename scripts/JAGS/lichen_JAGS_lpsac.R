@@ -1,7 +1,7 @@
 ## lichen lto model
 ##
 ## First edit: 20190605
-## Last edit: 20190612
+## Last edit: 20190614
 ##
 ## Author: Julian Klein
 
@@ -11,12 +11,15 @@ model{
   
   ## Observation model:
   for(p in 1:nplot){
-    for(k in 1:nrep){
-      for(i in 1:ntree[p]){
+    for(i in 1:ntree[p]){
+      
+      lambda_obs[i,p] <- (plot_richness[p]*i)/(sat_speed[p] + i)
+      
+      for(k in 1:nrep){
+      
+        obs[i,k,p] ~ dpois(lambda_obs[i,p])
+        obs_sim[i,k,p] ~ dpois(lambda_obs[i,p])
         
-        obs[i,k,p] ~ dpois(lambda_obs[i,k,p])
-        log(lambda_obs[i,k,p]) <- (plot_richness[p]*i)/(sat_speed[p] + i)
-  
   }}}
   
   ## Process model:
@@ -29,8 +32,9 @@ model{
     
     sat_speed[p] ~ dpois(lambda_sat[p])
     log(lambda_sat[p]) <- alpha_sat + 
-                          beta_dec_sat*dec[p,1] +
+                          #beta_dec_sat*dec[p,1] +
                           beta_dbh_sat*dbh[p,1]
+
   }
   
   ## Priors:
@@ -38,16 +42,22 @@ model{
   alpha_rich ~ dnorm(0, 0.001)
   alpha_sat ~ dnorm(0, 0.001)
   beta_dec_rich ~ dnorm(0, 0.001)
-  beta_dec_sat ~ dnorm(0, 0.001)
+  #beta_dec_sat ~ dnorm(0, 0.001)
   beta_dbh_rich ~ dnorm(0, 0.001)
   beta_dbh_sat ~ dnorm(0, 0.001)
   # tau_plot[k] <- 1/sigma_plot^2
   # sigma_plot[k] ~ dgamma(0.001, 0.001)
 
-  ## Model validation:
-
   ## Predictions:
   
+  # ## Percent deciduous:
+  # for(i in 1:length(dbh)){
+  # 
+  #
+  #   }
+  # ## Nr. of tree species:
+  # data$dec_pred <- seq(min(data$dec), max(data$dec), 0.05)
+  
+  
 }
-
 
