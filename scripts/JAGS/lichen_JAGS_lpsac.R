@@ -32,7 +32,7 @@ model{
     
     sat_speed[p] ~ dpois(lambda_sat[p])
     log(lambda_sat[p]) <- alpha_sat + 
-                          #beta_dec_sat*dec[p,1] +
+                          beta_dec_sat*dec[p,1] +
                           beta_dbh_sat*dbh[p,1]
 
   }
@@ -42,7 +42,7 @@ model{
   alpha_rich ~ dnorm(0, 0.001)
   alpha_sat ~ dnorm(0, 0.001)
   beta_dec_rich ~ dnorm(0, 0.001)
-  #beta_dec_sat ~ dnorm(0, 0.001)
+  beta_dec_sat ~ dnorm(0, 0.001)
   beta_dbh_rich ~ dnorm(0, 0.001)
   beta_dbh_sat ~ dnorm(0, 0.001)
   # tau_plot[k] <- 1/sigma_plot^2
@@ -50,13 +50,14 @@ model{
 
   ## Predictions:
   
-  # ## Percent deciduous:
-  # for(i in 1:length(dbh)){
-  # 
-  #
-  #   }
-  # ## Nr. of tree species:
-  # data$dec_pred <- seq(min(data$dec), max(data$dec), 0.05)
+  ## Percent deciduous:
+  for(m in 1:length(dec_pred)){
+    
+    log(r_dec[m]) <- alpha_rich + beta_dec_rich*dec_pred[m]
+
+  }
+  
+
   
   
 }

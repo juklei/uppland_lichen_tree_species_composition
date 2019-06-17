@@ -49,6 +49,15 @@ str(sad_tree)
 
 capture.output(cor(sad_tree[, 2:6])) %>% write(., "results/cor_lpsac.txt")
 
+## The variance decreases with the tree number looked at, e.g. at the asymptote
+## the variance is 0.
+T1 <- apply(sad, c(1, 3), sd, na.rm = T)
+plot(rep(1:dim(sad)[1], dim(sad)[3]), 
+     T1[, 1:dim(sad)[3]], 
+     xlab = "nr.tree", 
+     ylab = "sd")
+abline(lm(as.vector(T1[, 1:dim(sad)[3]]) ~ rep(1:dim(sad)[1], dim(sad)[3])))
+
 ## 4. The model ----------------------------------------------------------------
 
 ## Calculate the number of trees by plot:
@@ -96,8 +105,8 @@ burn.in <-  1000
 
 update(jm, n.iter = burn.in) 
 
-samples <- 1000
-n.thin <- 10
+samples <- 2000
+n.thin <- 5
 
 zc <- coda.samples(jm,
                    variable.names = c("alpha_rich",
@@ -157,6 +166,12 @@ points(rep(which(!is.na(sad[,1,i])), dim(sad)[2]),
 dev.off()
 
 ## 6. Produce and export figures -----------------------------------------------
+
+zj_pred <- jags.samples(jm,
+                        variable.names = c("r_dec"),
+                        n.iter = samples,
+                        thin = n.thin)
+
 
 
 ## -------------------------------END-------------------------------------------
