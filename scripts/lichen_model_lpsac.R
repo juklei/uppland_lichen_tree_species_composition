@@ -50,13 +50,14 @@ str(sad_tree)
 capture.output(cor(sad_tree[, 2:6])) %>% write(., "results/cor_lpsac.txt")
 
 ## The variance decreases with the tree number looked at, e.g. at the asymptote
-## the variance is 0.
-T1 <- apply(sad, c(1, 3), sd, na.rm = T)
-plot(rep(1:dim(sad)[1], dim(sad)[3]), 
-     T1[, 1:dim(sad)[3]], 
-     xlab = "nr.tree", 
-     ylab = "sd")
-abline(lm(as.vector(T1[, 1:dim(sad)[3]]) ~ rep(1:dim(sad)[1], dim(sad)[3])))
+## the variance is 0. Here we look at sd, but in the JAGS module tau is used 
+## instead. This is why the prior on beta_tau is strictly positive, even though 
+## the trend in the graph below is negative.
+T1 <- apply(sad, c(1, 3), sd, na.rm = TRUE)
+T1 <- cbind(as.vector(T1), rep(1:dim(sad)[1], dim(sad)[3]))
+T1 <- na.omit(T1)
+plot(T1[, 2], T1[, 1], xlab = "nr.tree", ylab = "sd")
+abline(lm(T1[, 1] ~ T1[, 2]))
 
 ## 4. The model ----------------------------------------------------------------
 
@@ -85,6 +86,10 @@ str(data)
 ## Prepare inits:
 
 inits <- list(list(plot_richness = rep(20, data$nplot),
+                   tau_obs = rep(1, dim(sad)[1]),
+                   alpha_tau = 3,
+                   beta_tau = 0.5,
+                   sigma_tau = 0.5,
                    sat_speed = rep(5, data$nplot),
                    alpha_rich = 0,
                    alpha_sat = 0,
@@ -97,19 +102,22 @@ model <- "scripts/JAGS/lichen_JAGS_lpsac.R"
 
 jm <- jags.model(model,
                  data = data,
-                 n.adapt = 500, 
+                 n.adapt = 5000, 
                  inits = inits, 
                  n.chains = 1) 
 
-burn.in <-  1000
+burn.in <-  5000
 
 update(jm, n.iter = burn.in) 
 
-samples <- 2000
+samples <- 10000
 n.thin <- 5
 
 zc <- coda.samples(jm,
-                   variable.names = c("alpha_rich",
+                   variable.names = c("alpha_tau", 
+                                      "beta_tau",
+                                      "sigma_tau",
+                                      "alpha_rich",
                                       "alpha_sat",
                                       "beta_dec_rich",
                                       "beta_dec_sat",
@@ -140,7 +148,13 @@ zj_val <- jags.samples(jm,
 ## Plot the accumulation data per plot (plot in third dimesnion in array):
 
 ## Extract the mean of the simulated values:
-dsp <- summary(zj_val$obs_sim, mean)$stat
+
+## For the spread:
+dsp <- zj_val$obs_sim[,1,,,1]
+
+## For the mean:
+dsp <- apply(zj_val$obs_sim, c(1,3,4), mean, na.rm = TRUE)
+
 
 dev.off()
 
@@ -151,8 +165,8 @@ par(mfrow = c(3, 2))
 for(i in 1:data$nplot) {
 
 ## Sim data:
-plot(rep(which(!is.na(dsp[,1,i])), dim(dsp)[2]), 
-     na.omit(as.vector(dsp[,,i])), 
+plot(rep(which(!is.na(dsp[,i,1])), dim(dsp)[3]), 
+     na.omit(as.vector(dsp[,i,])), 
      col = "red", 
      xlab = "tree", 
      ylab = "richness")
@@ -171,7 +185,5 @@ zj_pred <- jags.samples(jm,
                         variable.names = c("r_dec"),
                         n.iter = samples,
                         thin = n.thin)
-
-
 
 ## -------------------------------END-------------------------------------------
