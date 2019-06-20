@@ -73,7 +73,7 @@ lo_list <- lapply(lo_list, function(x) as.matrix(x[, -1]))
 lo_list <- lapply(lo_list, function(x) x[, colSums(x) != 0])
 
 ## How many shuffelings?
-S <- 100
+S <- 25
 
 ## Define the function:
 sac_create <- function(x) {

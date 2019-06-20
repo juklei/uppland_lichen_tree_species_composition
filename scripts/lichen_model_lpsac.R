@@ -21,14 +21,10 @@ library(data.table)
 ## 2. Define or source functions used in this script ---------------------------
 
 dir.create("results")
-dir.create("results/ltsac")
 dir.create("figures")
 
 ## Print all rows for mcmc outputs
 options(max.print = 10E5)
-
-## Coefficient of variation:
-CV <- function(x) sd(x, na.rm = TRUE)/mean(x, na.rm = TRUE)
 
 ## Backscale function
 backscale <- function(pred_data, model_input_data) {
@@ -49,16 +45,6 @@ str(sad_tree)
 
 capture.output(cor(sad_tree[, 2:6])) %>% write(., "results/cor_lpsac.txt")
 
-## The variance decreases with the tree number looked at, e.g. at the asymptote
-## the variance is 0. Here we look at sd, but in the JAGS module tau is used 
-## instead. This is why the prior on beta_tau is strictly positive, even though 
-## the trend in the graph below is negative.
-T1 <- apply(sad, c(1, 3), sd, na.rm = TRUE)
-T1 <- cbind(as.vector(T1), rep(1:dim(sad)[1], dim(sad)[3]))
-T1 <- na.omit(T1)
-plot(T1[, 2], T1[, 1], xlab = "nr.tree", ylab = "sd")
-abline(lm(T1[, 1] ~ T1[, 2]))
-
 ## 4. The model ----------------------------------------------------------------
 
 ## Calculate the number of trees by plot:
@@ -70,91 +56,90 @@ data <- list(nrep = dim(sad)[2],
              ntree = ntree,
              obs = sad,
              dec = scale(sad_tree$dec),
+             spruce = scale(sad_tree$spruce),
+             pine = scale(sad_tree$pine),
              nr_tsp = scale(sad_tree$nr_tsp),
              dbh = scale(sad_tree$dbh))
 
 ## Add prediction data:
 
-## Percent deciduous:
 data$dec_pred <- seq(min(data$dec), max(data$dec), 0.05)
-
-## Nr. of tree species:
-data$dec_pred <- seq(min(data$dec), max(data$dec), 0.05)
+data$spruce_pred <- seq(min(data$spruce), max(data$spruce), 0.05)
+data$pine_pred <- seq(min(data$pine), max(data$pine), 0.05)
 
 str(data)
 
 ## Prepare inits:
+plot_richness <- sad[1,,]
+plot_richness[] <- 20
+sat_speed <- sad[1,,]
+sat_speed[] <- 5 
 
-inits <- list(list(plot_richness = rep(20, data$nplot),
-                   tau_obs = rep(1, dim(sad)[1]),
-                   alpha_tau = 3,
-                   beta_tau = 0.5,
-                   sigma_tau = 0.5,
-                   sat_speed = rep(5, data$nplot),
-                   alpha_rich = 0,
-                   alpha_sat = 0,
+inits <- list(list(plot_richness = plot_richness,#rep(20, data$nplot),
+                   sat_speed = sat_speed,#rep(5, data$nplot),
+                   alpha_rich = 5,
+                   alpha_sat = 5,
                    beta_dec_rich = 0.2,
                    beta_dec_sat = 0.1,
+                   beta_spruce_rich = 0.2,
+                   beta_spruce_sat = 0.1,
+                   beta_pine_rich = 0.2,
+                   beta_pine_sat = 0.1,
                    beta_dbh_rich = 0.2,
-                   beta_dbh_sat = 0.1))
+                   beta_dbh_sat = 0.1,
+                   beta_nr_tsp = 0.1))
 
 model <- "scripts/JAGS/lichen_JAGS_lpsac.R"
 
 jm <- jags.model(model,
                  data = data,
-                 n.adapt = 5000, 
+                 n.adapt = 500, 
                  inits = inits, 
                  n.chains = 1) 
 
-burn.in <-  5000
+burn.in <-  1000
 
 update(jm, n.iter = burn.in) 
 
-samples <- 10000
+samples <- 1000
 n.thin <- 5
 
 zc <- coda.samples(jm,
-                   variable.names = c("alpha_tau", 
-                                      "beta_tau",
-                                      "sigma_tau",
-                                      "alpha_rich",
+                   variable.names = c("alpha_rich",
                                       "alpha_sat",
                                       "beta_dec_rich",
                                       "beta_dec_sat",
+                                      "beta_spruce_rich",
+                                      "beta_spruce_sat",
+                                      "beta_pine_rich",
+                                      "beta_pine_sat",
                                       "beta_dbh_rich",
-                                      "beta_dbh_sat"),
+                                      "beta_dbh_sat",
+                                      "beta_nr_tsp_rich"),
                    n.iter = samples, 
                    thin = n.thin)
 
 ## Export parameter estimates:
 capture.output(summary(zc), HPDinterval(zc, prob = 0.95)) %>% 
-  write(., "results/parameters_lpsac.txt")
+  write(., "results/parameters_lpsac_dec.txt")
 
 ## 5. Validate the model and export validation data and figures ----------------
 
-pdf("figures/plot_zc_lpsac.pdf")
+pdf("figures/plot_zc_lpsac_dec.pdf")
 plot(zc)
 dev.off()
 
 capture.output(raftery.diag(zc), heidel.diag(zc)) %>% 
-  write(., "results/diagnostics_lpsac.txt")
+  write(., "results/diagnostics_lpsac_dec.txt")
 
 ## Produce validation metrics:
 zj_val <- jags.samples(jm,
-                       variable.names = c("obs_sim"),
-                       n.iter = 1000,
-                       thin = 10)
+                       variable.names = c("obs_pred"),
+                       n.iter = samples,
+                       thin = n.thin)
 
-## Plot the accumulation data per plot (plot in third dimesnion in array):
-
-## Extract the mean of the simulated values:
-
-## For the spread:
-dsp <- zj_val$obs_sim[,1,,,1]
-
-## For the mean:
-dsp <- apply(zj_val$obs_sim, c(1,3,4), mean, na.rm = TRUE)
-
+pred <- summary(zj_val$obs_pred, quantile, c(.025,.5,.975))$stat
+x = 0:50
 
 dev.off()
 
@@ -163,18 +148,17 @@ pdf("figures/sim_vs_obs.pdf")
 par(mfrow = c(3, 2))
 
 for(i in 1:data$nplot) {
-
-## Sim data:
-plot(rep(which(!is.na(dsp[,i,1])), dim(dsp)[3]), 
-     na.omit(as.vector(dsp[,i,])), 
-     col = "red", 
-     xlab = "tree", 
-     ylab = "richness")
-
-## Real data:
-points(rep(which(!is.na(sad[,1,i])), dim(sad)[2]), 
-       na.omit(as.vector(sad[,,i])))
-
+  
+  y=pred[,,i]
+  plot(x,y[3,], lty="dashed", col="blue", xlab="tree nr", ylab="richness", typ="l")
+  lines(x,y[2,], col="blue")
+  lines(x,y[1,], lty="dashed", col="blue")
+  polygon(c(x,rev(x)), c(y[1,], rev(y[3,])), density=19, col="blue", angle=45)
+  
+  ## Real data:
+  points(rep(which(!is.na(sad[,1,i])), dim(sad)[2]),
+         na.omit(as.vector(sad[,,i])))
+  
 }
 
 dev.off()
@@ -182,8 +166,20 @@ dev.off()
 ## 6. Produce and export figures -----------------------------------------------
 
 zj_pred <- jags.samples(jm,
-                        variable.names = c("r_dec"),
+                        variable.names = c("r_dec", "r_spruce", "r_pine"),
                         n.iter = samples,
                         thin = n.thin)
+
+export_srd <- zj_pred
+export_srd$dec_pred <- backscale(data$dec_pred, data$dec)
+save(export_srd, file = "clean/sac_pred_r_dec.rda")
+
+# export_srs <- zj_pred
+# export_srs$spruce_pred <- backscale(data$spruce_pred, data$spruce)
+# save(export_srs, file = "clean/sac_pred_r_spruce.rda")
+
+# export_srp <- zj_pred
+# export_srp$pine_pred <- backscale(data$pine_pred, data$pine)
+# save(export_srp, file = "clean/sac_pred_r_pine.rda")
 
 ## -------------------------------END-------------------------------------------
