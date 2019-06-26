@@ -73,7 +73,7 @@ lo_list <- lapply(lo_list, function(x) as.matrix(x[, -1]))
 lo_list <- lapply(lo_list, function(x) x[, colSums(x) != 0])
 
 ## How many shuffelings?
-S <- 25
+S <- 100
 
 ## Define the function:
 sac_create <- function(x) {
@@ -105,7 +105,9 @@ sad_tree <- sad_tree[, list("pine" = sum(Tree.species == "Ps")/nrow(.SD),
                             "spruce" = sum(Tree.species == "Pa")/nrow(.SD),
                             "dbh" = mean(Tree.diameter.130.cm.above.ground,
                                          na.rm = TRUE),
-                            "nr_tsp" = length(unique(Tree.species))),
+                            "nr_tsp" = length(unique(Tree.species)),
+                            "nr_dec" = sum(!unique(Tree.species) %in% c("Pa", 
+                                                                        "Ps"))),
                      by = "plot"]
 sad_tree$dec <- 1-(sad_tree$pine + sad_tree$spruce)
 

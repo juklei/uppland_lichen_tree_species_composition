@@ -59,6 +59,8 @@ data <- list(nrep = dim(sad)[2],
              spruce = scale(sad_tree$spruce),
              pine = scale(sad_tree$pine),
              nr_tsp = scale(sad_tree$nr_tsp),
+             dec1 = ifelse(sad_tree$nr_dec == 1, 1, 0),
+             dec2 = ifelse(sad_tree$nr_dec > 1, 1, 0),
              dbh = scale(sad_tree$dbh))
 
 ## Add prediction data:
@@ -69,14 +71,8 @@ data$pine_pred <- seq(min(data$pine), max(data$pine), 0.05)
 
 str(data)
 
-## Prepare inits:
-plot_richness <- sad[1,,]
-plot_richness[] <- 20
-sat_speed <- sad[1,,]
-sat_speed[] <- 5 
-
-inits <- list(list(plot_richness = plot_richness,#rep(20, data$nplot),
-                   sat_speed = sat_speed,#rep(5, data$nplot),
+inits <- list(list(plot_richness = rep(20, data$nplot),
+                   sat_speed = rep(5, data$nplot),
                    alpha_rich = 5,
                    alpha_sat = 5,
                    beta_dec_rich = 0.2,
@@ -87,21 +83,23 @@ inits <- list(list(plot_richness = plot_richness,#rep(20, data$nplot),
                    beta_pine_sat = 0.1,
                    beta_dbh_rich = 0.2,
                    beta_dbh_sat = 0.1,
-                   beta_nr_tsp = 0.1))
+                   beta_nr_tsp = 0.1,
+                   beta_dec1 = 0.2, 
+                   beta_dec2 = 0.3))
 
 model <- "scripts/JAGS/lichen_JAGS_lpsac.R"
 
 jm <- jags.model(model,
                  data = data,
-                 n.adapt = 500, 
+                 n.adapt = 5000, 
                  inits = inits, 
                  n.chains = 1) 
 
-burn.in <-  1000
+burn.in <-  10000
 
 update(jm, n.iter = burn.in) 
 
-samples <- 1000
+samples <- 10000
 n.thin <- 5
 
 zc <- coda.samples(jm,
@@ -115,22 +113,24 @@ zc <- coda.samples(jm,
                                       "beta_pine_sat",
                                       "beta_dbh_rich",
                                       "beta_dbh_sat",
-                                      "beta_nr_tsp_rich"),
+                                      "beta_nr_tsp_rich",
+                                      "beta_dec1",
+                                      "beta_dec2"),
                    n.iter = samples, 
                    thin = n.thin)
 
 ## Export parameter estimates:
 capture.output(summary(zc), HPDinterval(zc, prob = 0.95)) %>% 
-  write(., "results/parameters_lpsac_dec.txt")
+  write(., "results/parameters_lpsac_nr_dec.txt")
 
 ## 5. Validate the model and export validation data and figures ----------------
 
-pdf("figures/plot_zc_lpsac_dec.pdf")
+pdf("figures/plot_zc_lpsac_nr_dec.pdf")
 plot(zc)
 dev.off()
 
 capture.output(raftery.diag(zc), heidel.diag(zc)) %>% 
-  write(., "results/diagnostics_lpsac_dec.txt")
+  write(., "results/diagnostics_lpsac_nr_dec.txt")
 
 ## Produce validation metrics:
 zj_val <- jags.samples(jm,
@@ -143,7 +143,7 @@ x = 0:50
 
 dev.off()
 
-pdf("figures/sim_vs_obs.pdf")
+pdf("figures/sim_vs_obs_nr_tsp.pdf")
 
 par(mfrow = c(3, 2))
 
@@ -170,16 +170,16 @@ zj_pred <- jags.samples(jm,
                         n.iter = samples,
                         thin = n.thin)
 
-export_srd <- zj_pred
-export_srd$dec_pred <- backscale(data$dec_pred, data$dec)
-save(export_srd, file = "clean/sac_pred_r_dec.rda")
+# export_srd <- zj_pred
+# export_srd$dec_pred <- backscale(data$dec_pred, data$dec)
+# save(export_srd, file = "clean/sac_pred_r_dec.rda")
 
 # export_srs <- zj_pred
 # export_srs$spruce_pred <- backscale(data$spruce_pred, data$spruce)
 # save(export_srs, file = "clean/sac_pred_r_spruce.rda")
 
-# export_srp <- zj_pred
-# export_srp$pine_pred <- backscale(data$pine_pred, data$pine)
-# save(export_srp, file = "clean/sac_pred_r_pine.rda")
+export_srp <- zj_pred
+export_srp$pine_pred <- backscale(data$pine_pred, data$pine)
+save(export_srp, file = "clean/sac_pred_r_pine.rda")
 
 ## -------------------------------END-------------------------------------------

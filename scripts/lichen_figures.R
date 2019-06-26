@@ -19,7 +19,7 @@ require("data.table")
 
 ## 3. Load and explore data ----------------------------------------------------
 
-load("clean/ltr_pred.rda")
+load("clean/ltr_pred.rdata")
 load("clean/sac_pred_r_dec.rda")
 load("clean/sac_pred_r_spruce.rda")
 load("clean/sac_pred_r_pine.rda")
@@ -66,7 +66,7 @@ d_ld <- data.frame("r" = t(y_dec)[,2],
                    "upper" = t(y_dec)[,3],
                    "dec" = export_srd$dec_pred)
 
-p1 <- ggplot(d_ld, aes(x = dec, y = r))
+p1 <- ggplot(d_ld, aes(x = dec*100, y = r))
 p2 <- geom_line(size = 2)
 p3 <- geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3)
 
@@ -99,19 +99,23 @@ d_all <- data.frame("r" = t(y_all)[,2],
                                           length(export_srp$pine_pred))))
 
 q1 <- ggplot(d_all, 
-             aes(x = perc_tree, y = r, fill = tree_species, color = tree_species))
+             aes(x = perc_tree*100, 
+                 y = r, 
+                 fill = tree_species, 
+                 color = tree_species,
+                 lty = tree_species))
 q2 <- geom_line(size = 2)
-q3 <- geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3)
+q3 <- geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .3, colour = NA)
 
 png("figures/r_all.png", 10000/4, 7000/4, "px", res = 600/4)
 
 q1 + q2 + q3 +
   ylab("expected stand richness") + 
   xlab("percentage of trees") +
-  scale_color_manual(breaks = c("deciduous", "spruce", "pine"), 
-                     values = c("blue", "black", "red")) + 
-  scale_fill_manual(breaks = c("deciduous", "spruce", "pine"),
-                    values = c("blue", "black", "red")) +
+  scale_color_manual(breaks = c("deciduous", "pine", "spruce"), 
+                     values = c("blue", "red", "black")) + 
+  scale_fill_manual(breaks = c("deciduous", "pine", "spruce"),
+                    values = c("blue", "red", "black")) +
   theme_classic(40) +                  
   theme(legend.position = c(0.15, 0.75), 
         legend.title = element_blank(),
