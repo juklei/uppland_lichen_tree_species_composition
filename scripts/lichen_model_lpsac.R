@@ -3,7 +3,7 @@
 ## We put an explanatory variable on both the half saturation and the asymptote 
 ##
 ## First edit: 20190605
-## Last edit: 20190612
+## Last edit: 20190820
 ##
 ## Author: Julian Klein
 
@@ -17,6 +17,8 @@ library(coda)
 library(magrittr)
 library(reshape2)
 library(data.table)
+library(parallel)
+library(dclone)
 
 ## 2. Define or source functions used in this script ---------------------------
 
@@ -43,8 +45,6 @@ load("clean/sad_tree_part.rda")
 str(sad)
 str(sad_tree)
 
-capture.output(cor(sad_tree[, 2:6])) %>% write(., "results/cor_lpsac.txt")
-
 ## 4. The model ----------------------------------------------------------------
 
 ## Calculate the number of trees by plot:
@@ -63,8 +63,10 @@ data <- list(nrep = dim(sad)[2],
              dec2 = ifelse(sad_tree$nr_dec > 1, 1, 0),
              dbh = scale(sad_tree$dbh))
 
-## Add prediction data:
+capture.output(cor(as.data.frame(data[5:11]))) %>% 
+                 write(., "results/cor_lpsac.txt")
 
+## Add prediction data:
 data$dec_pred <- seq(min(data$dec), max(data$dec), 0.05)
 data$spruce_pred <- seq(min(data$spruce), max(data$spruce), 0.05)
 data$pine_pred <- seq(min(data$pine), max(data$pine), 0.05)
@@ -85,52 +87,95 @@ inits <- list(list(plot_richness = rep(20, data$nplot),
                    beta_dbh_sat = 0.1,
                    beta_nr_tsp = 0.1,
                    beta_dec1 = 0.2, 
-                   beta_dec2 = 0.3))
+                   beta_dec2 = 0.3),
+              list(plot_richness = rep(10, data$nplot),
+                   sat_speed = rep(1, data$nplot),
+                   alpha_rich = -5,
+                   alpha_sat = -5,
+                   beta_dec_rich = 0,
+                   beta_dec_sat = 0,
+                   beta_spruce_rich = 0,
+                   beta_spruce_sat = 0,
+                   beta_pine_rich = 0,
+                   beta_pine_sat = 0,
+                   beta_dbh_rich = 0,
+                   beta_dbh_sat = 0,
+                   beta_nr_tsp = 0,
+                   beta_dec1 = 0, 
+                   beta_dec2 = 0),
+              list(plot_richness = rep(30, data$nplot),
+                   sat_speed = rep(10, data$nplot),
+                   alpha_rich = 10,
+                   alpha_sat = 10,
+                   beta_dec_rich = -0.2,
+                   beta_dec_sat = -0.1,
+                   beta_spruce_rich = -0.2,
+                   beta_spruce_sat = -0.1,
+                   beta_pine_rich = -0.2,
+                   beta_pine_sat = -0.1,
+                   beta_dbh_rich = -0.2,
+                   beta_dbh_sat = -0.1,
+                   beta_nr_tsp = -0.1,
+                   beta_dec1 = -0.2,
+                   beta_dec2 = -0.3))
 
 model <- "scripts/JAGS/lichen_JAGS_lpsac.R"
 
-jm <- jags.model(model,
-                 data = data,
-                 n.adapt = 5000, 
-                 inits = inits, 
-                 n.chains = 1) 
+# sfInit(parallel = TRUE, cpus = 3) ## Parllel computing (Pcomp)
+# sfLibrary(rjags) ## Pcomp
 
-burn.in <-  10000
+start <- Sys.time()
 
-update(jm, n.iter = burn.in) 
+## Parallel computing:
+cl <- makePSOCKcluster(3) ## On 3 cores
 
-samples <- 10000
+parJagsModel(cl = cl, 
+             name = "lpsac", 
+             file = model,
+             data = data,
+             n.adapt = 50000, 
+             inits = inits, 
+             n.chains = 3) 
+
+parUpdate(cl = cl, object = "lpsac", n.iter = 150000) 
+
+samples <- 2000
 n.thin <- 5
 
-zc <- coda.samples(jm,
-                   variable.names = c("alpha_rich",
-                                      "alpha_sat",
-                                      "beta_dec_rich",
-                                      "beta_dec_sat",
-                                      "beta_spruce_rich",
-                                      "beta_spruce_sat",
-                                      "beta_pine_rich",
-                                      "beta_pine_sat",
-                                      "beta_dbh_rich",
-                                      "beta_dbh_sat",
-                                      "beta_nr_tsp_rich",
-                                      "beta_dec1",
-                                      "beta_dec2"),
-                   n.iter = samples, 
-                   thin = n.thin)
+zc <- parCodaSamples(cl = cl, model = "lpsac",
+                     variable.names = c("alpha_rich",
+                                        "alpha_sat",
+                                        "beta_dec_rich",
+                                        "beta_dec_sat",
+                                        "beta_spruce_rich",
+                                        "beta_spruce_sat",
+                                        "beta_pine_rich",
+                                        "beta_pine_sat",
+                                        "beta_dbh_rich",
+                                        "beta_dbh_sat",
+                                        "beta_nr_tsp_rich",
+                                        "beta_dec1",
+                                        "beta_dec2"),
+                     n.iter = samples, 
+                     thin = n.thin)
+
+end <- Sys.time()
+end-start
 
 ## Export parameter estimates:
 capture.output(summary(zc), HPDinterval(zc, prob = 0.95)) %>% 
-  write(., "results/parameters_lpsac_nr_dec.txt")
+  write(., "results/parameters_lpsac_dec.txt")
 
 ## 5. Validate the model and export validation data and figures ----------------
 
-pdf("figures/plot_zc_lpsac_nr_dec.pdf")
+pdf("figures/plot_zc_lpsac_dec.pdf")
 plot(zc)
 dev.off()
 
 capture.output(raftery.diag(zc), heidel.diag(zc)) %>% 
-  write(., "results/diagnostics_lpsac_nr_dec.txt")
+  write(., "results/diagnostics_lpsac_dec.txt")
+
+stopCluster(cl)
 
 ## Produce validation metrics:
 zj_val <- jags.samples(jm,
@@ -143,7 +188,7 @@ x = 0:50
 
 dev.off()
 
-pdf("figures/sim_vs_obs_nr_tsp.pdf")
+pdf("figures/sim_vs_obs_dec.pdf")
 
 par(mfrow = c(3, 2))
 
@@ -170,16 +215,16 @@ zj_pred <- jags.samples(jm,
                         n.iter = samples,
                         thin = n.thin)
 
-# export_srd <- zj_pred
-# export_srd$dec_pred <- backscale(data$dec_pred, data$dec)
-# save(export_srd, file = "clean/sac_pred_r_dec.rda")
+export_srd <- zj_pred
+export_srd$dec_pred <- backscale(data$dec_pred, data$dec)
+save(export_srd, file = "clean/sac_pred_r_dec.rda")
 
 # export_srs <- zj_pred
 # export_srs$spruce_pred <- backscale(data$spruce_pred, data$spruce)
 # save(export_srs, file = "clean/sac_pred_r_spruce.rda")
 
-export_srp <- zj_pred
-export_srp$pine_pred <- backscale(data$pine_pred, data$pine)
-save(export_srp, file = "clean/sac_pred_r_pine.rda")
+# export_srp <- zj_pred
+# export_srp$pine_pred <- backscale(data$pine_pred, data$pine)
+# save(export_srp, file = "clean/sac_pred_r_pine.rda")
 
 ## -------------------------------END-------------------------------------------

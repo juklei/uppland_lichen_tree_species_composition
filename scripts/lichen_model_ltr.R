@@ -66,7 +66,27 @@ inits <-  list(list(p = 0.8,
                     beta_alder = 0.5,
                     beta_dbh = 0.5,
                     alpha = 2,
-                    sigma_plot = 2))
+                    sigma_plot = 2),
+               list(p = 0.5,
+                    richness_true = rep(5, data$nobs),
+                    beta_pine = 0,
+                    beta_spruce = 0,
+                    beta_aspen = 0,
+                    beta_oak = 0,
+                    beta_alder = 0,
+                    beta_dbh = 0,
+                    alpha = 3,
+                    sigma_plot = 0.1),
+               list(p = 0.99,
+                    richness_true = rep(11, data$nobs),
+                    beta_pine = 1,
+                    beta_spruce = 1,
+                    beta_aspen = 1,
+                    beta_oak = 1,
+                    beta_alder = 1,
+                    beta_dbh = 1,
+                    alpha = 5,
+                    sigma_plot = 5))
 
 model <- "scripts/JAGS/lichen_JAGS_ltr.R"
 
@@ -92,7 +112,7 @@ zc <- coda.samples(jm,
                                       "beta_oak",
                                       "beta_alder",
                                       "beta_dbh",
-                                      "sigma_plot"), 
+                                      "sigma_plot"),
                    n.iter = samples, 
                    thin = n.thin)
 
@@ -100,65 +120,91 @@ zc <- coda.samples(jm,
 capture.output(summary(zc), HPDinterval(zc, prob = 0.95)) %>% 
   write(., "results/parameters_ltr.txt")
 
+zj_diff <- jags.samples(jm, 
+                        variable.names = c("aspen_birch",
+                                           "aspen_oak",
+                                           "aspen_alder",
+                                           "aspen_pine",
+                                           "aspen_spruce",
+                                           "birch_oak", 
+                                           "birch_alder", 
+                                           "birch_pine",
+                                           "birch_spruce",
+                                           "oak_alder",
+                                           "oak_pine",
+                                           "oak_spruce",
+                                           "alder_pine",
+                                           "alder_spruce",
+                                           "pine_spruce"), 
+                        n.iter = samples, 
+                        thin = n.thin)
+
+## Extract 95% CIs of the difference:
+ANOVA_diff <- lapply(zj_diff, 
+                     function(x) summary(x, quantile, c(.025,.975))$stat)
+
+## Extract probability that difference is bigger than 0:
+ANOVA_prob <- lapply(zj_diff, function(x) 1-ecdf(x)(0)) 
+
+## Print and export:
+capture.output(print("95% Confidence Intervals"),
+               as.data.frame(ANOVA_diff),
+               print("P(diff >= 0)"),
+               as.matrix(ANOVA_prob)) %>%
+  write(., "results/ANOVA_results_ltr.txt")
+
 ## 5. Validate the model and export validation data and figures ----------------
 
 pdf("figures/plot_zc_ltr.pdf")
 plot(zc)
 dev.off()
 
-capture.output(raftery.diag(zc), heidel.diag(zc)) %>% 
+capture.output(raftery.diag(zc), heidel.diag(zc), gelman.diag(zc)) %>% 
   write(., "results/diagnostics_ltr.txt")
 
-gelman.diag(zc)
-
-## Useful functions:
-# ecdf(zj$mean_out)(0)
-# coda.matrix <- as.matrix(zc[[1]])
-# head(coda.matrix)
-
-## Produce validation metrics: 
-zj_val <- jags.samples(jm, 
-                       variable.names = c("mean_richness", 
-                                          "mean_richness_sim",
-                                          "p_mean", 
-                                          "cv_richness", 
-                                          "cv_richness_sim", 
-                                          "p_cv", 
-                                          "fit", 
-                                          "fit_sim",
-                                          "p_fit"), 
-                       n.iter = samples, 
-                       thin = n.thin)
-
-## Fit of mean:
-plot(zj_val$mean_richness, 
-     zj_val$mean_richness_sim, 
-     xlab = "mean real", 
-     ylab = "mean simulated", 
-     cex = .05)
-abline(0, 1)
-p <- summary(zj_val$p_mean, mean)
-text(x = 8, y = 10.7, paste0("P=", round(as.numeric(p[1]), 4)), cex = 1.5)
-
-## Fit of variance:
-plot(zj_val$cv_richness, 
-     zj_val$cv_richness_sim, 
-     xlab = "cv real", 
-     ylab = "cv simulated", 
-     cex = .05)
-abline(0,1)
-p <- summary(zj_val$p_cv, mean)
-text(x = .25, y = .335, paste0("P=", round(as.numeric(p[1]), 4)), cex = 1.5)
-
-## Overall fit:
-plot(zj_val$fit, 
-     zj_val$fit_sim, 
-     xlab = "ssq real", 
-     ylab = "ssq simulated", 
-     cex = .05)
-abline(0,1)
-p <- summary(zj_val$p_fit, mean)
-text(x = 480, y = 650, paste0("P=", round(as.numeric(p[1]), 4)), cex = 1.5)
+# ## Produce validation metrics: 
+# zj_val <- jags.samples(jm, 
+#                        variable.names = c("mean_richness", 
+#                                           "mean_richness_sim",
+#                                           "p_mean", 
+#                                           "cv_richness", 
+#                                           "cv_richness_sim", 
+#                                           "p_cv", 
+#                                           "fit", 
+#                                           "fit_sim",
+#                                           "p_fit"), 
+#                        n.iter = samples, 
+#                        thin = n.thin)
+# 
+# ## Fit of mean:
+# plot(zj_val$mean_richness, 
+#      zj_val$mean_richness_sim, 
+#      xlab = "mean real", 
+#      ylab = "mean simulated", 
+#      cex = .05)
+# abline(0, 1)
+# p <- summary(zj_val$p_mean, mean)
+# text(x = 8, y = 10.7, paste0("P=", round(as.numeric(p[1]), 4)), cex = 1.5)
+# 
+# ## Fit of variance:
+# plot(zj_val$cv_richness, 
+#      zj_val$cv_richness_sim, 
+#      xlab = "cv real", 
+#      ylab = "cv simulated", 
+#      cex = .05)
+# abline(0,1)
+# p <- summary(zj_val$p_cv, mean)
+# text(x = .25, y = .335, paste0("P=", round(as.numeric(p[1]), 4)), cex = 1.5)
+# 
+# ## Overall fit:
+# plot(zj_val$fit, 
+#      zj_val$fit_sim, 
+#      xlab = "ssq real", 
+#      ylab = "ssq simulated", 
+#      cex = .05)
+# abline(0,1)
+# p <- summary(zj_val$p_fit, mean)
+# text(x = 480, y = 650, paste0("P=", round(as.numeric(p[1]), 4)), cex = 1.5)
 
 ## 6. Produce and export figures -----------------------------------------------
 

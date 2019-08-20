@@ -48,32 +48,32 @@ model{
   sigma_plot ~ dgamma(0.001, 0.001)
   tau_plot <- 1/sigma_plot^2
 
-  ## Model validation:
-
-  ## Bayesian p-value:
-  mean_richness <- mean(richness[])
-  mean_richness_sim <- mean(richness_sim[])
-  p_mean <- step(mean_richness_sim - mean_richness)
-
-  ## Coefficient of variation:
-  cv_richness <- sd(richness[])/mean_richness
-  cv_richness_sim <- sd(richness_sim[])/mean_richness_sim
-  p_cv <- step(cv_richness - cv_richness_sim)
-
-  ## Model fit:
-  for(m in 1:nobs){
-
-    sq[m] <- (richness[m] - p*richness_true[m])^2
-    sq_sim[m] <- (richness_sim[m] - p*richness_true[m])^2
-    
-  }
-
-  fit <- sum(sq[])
-  fit_sim <- sum(sq_sim[])
-  p_fit <- step(fit_sim - fit)
+  # ## Model validation:
+  # 
+  # ## Bayesian p-value:
+  # mean_richness <- mean(richness[])
+  # mean_richness_sim <- mean(richness_sim[])
+  # p_mean <- step(mean_richness_sim - mean_richness)
+  # 
+  # ## Coefficient of variation:
+  # cv_richness <- sd(richness[])/mean_richness
+  # cv_richness_sim <- sd(richness_sim[])/mean_richness_sim
+  # p_cv <- step(cv_richness - cv_richness_sim)
+  # 
+  # ## Model fit:
+  # for(m in 1:nobs){
+  # 
+  #   sq[m] <- (richness[m] - p*richness_true[m])^2
+  #   sq_sim[m] <- (richness_sim[m] - p*richness_true[m])^2
+  #   
+  # }
+  # 
+  # fit <- sum(sq[])
+  # fit_sim <- sum(sq_sim[])
+  # p_fit <- step(fit_sim - fit)
   
   ## Predictions:
-
+  
   ## Tree species:
   log(birch_mean) <- alpha
   log(pine_mean) <- alpha + beta_pine
@@ -81,6 +81,23 @@ model{
   log(aspen_mean) <- alpha + beta_aspen
   log(oak_mean) <- alpha + beta_oak
   log(alder_mean) <- alpha + beta_alder
+  
+  ## Calculate differences:
+  aspen_birch <- birch_mean - aspen_mean
+  aspen_oak <- oak_mean - aspen_mean
+  aspen_alder <- alder_mean - aspen_mean
+  aspen_pine <- pine_mean - aspen_mean
+  aspen_spruce <- spruce_mean - aspen_mean
+  birch_oak <- oak_mean - birch_mean
+  birch_alder <- alder_mean - birch_mean
+  birch_pine <- pine_mean - birch_mean
+  birch_spruce <- spruce_mean - birch_mean
+  oak_alder <- alder_mean - oak_mean
+  oak_pine <- pine_mean - oak_mean
+  oak_spruce <- spruce_mean - oak_mean
+  alder_pine <- pine_mean - alder_mean
+  alder_spruce <- spruce_mean - alder_mean
+  pine_spruce <- spruce_mean - pine_mean
   
 }
 

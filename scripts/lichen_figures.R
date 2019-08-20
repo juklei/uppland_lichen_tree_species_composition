@@ -23,6 +23,7 @@ load("clean/ltr_pred.rdata")
 load("clean/sac_pred_r_dec.rda")
 load("clean/sac_pred_r_spruce.rda")
 load("clean/sac_pred_r_pine.rda")
+load("clean/sac_pred_r_nr_tsp.rda")
 
 ## 4. Make graphs for ltr predictions ------------------------------------------
 
@@ -42,7 +43,7 @@ d_ls <- data.frame("richness" = t(y_ls)[,2],
                    "species" = c("pine", "spruce", "aspen", "oak", "alder", 
                                  "birch"))
 d_ls$species <- factor(d_ls$species, 
-                       levels =  c("aspen", "birch", "alder", "oak", "pine", 
+                       levels =  c("aspen", "birch", "oak", "alder", "pine", 
                                    "spruce"))
 
 g1 <- ggplot(d_ls, aes(x = species, y = richness))
@@ -57,24 +58,24 @@ dev.off()
 
 ## 5. Make graphs for lpsac ----------------------------------------------------
 
-## Percentage deciduous:
+## Nr. tree species:
 
-y_dec <- summary(export_srd$r_dec, quantile, c(.025,.5,.975))$stat
+y_nr_tsp <- summary(export_nr_tsp$r_nr_tsp, quantile, c(.025,.5,.975))$stat
 
-d_ld <- data.frame("r" = t(y_dec)[,2],
-                   "lower" = t(y_dec)[,1],
-                   "upper" = t(y_dec)[,3],
-                   "dec" = export_srd$dec_pred)
+d_lntsp <- data.frame("r" = t(y_nr_tsp)[,2],
+                      "lower" = t(y_nr_tsp)[,1],
+                      "upper" = t(y_nr_tsp)[,3],
+                      "nr_tsp" = export_nr_tsp$nr_tsp_pred)
 
-p1 <- ggplot(d_ld, aes(x = dec*100, y = r))
+p1 <- ggplot(d_lntsp, aes(x = nr_tsp, y = r))
 p2 <- geom_line(size = 2)
 p3 <- geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3)
 
-png("figures/r_dec.png", 10000/4, 7000/4, "px", res = 600/4)
+png("figures/r_nr_tsp.png", 10000/4, 7000/4, "px", res = 600/4)
 
 p1 + p2 + p3 +
   ylab("expected stand richness") + 
-  xlab("percentage decidous trees") +
+  xlab("number of tree species") +
   theme_classic(40) 
 
 dev.off()
