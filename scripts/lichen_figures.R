@@ -67,20 +67,25 @@ dev.off()
 
 ## Nr. tree species:
 
-y_nr_tsp <- summary(export_nr_tsp$r_nr_tsp)$quantiles
+y_nr_tsp <- rbind(summary(export_srntsp[, "r_1tsp"])$quantiles,
+                  summary(export_srntsp[, "r_2tsp"])$quantiles,
+                  summary(export_srntsp[, "r_3tsp"])$quantiles,
+                  summary(export_srntsp[, "r_4tsp"])$quantiles)
 
 d_lntsp <- data.frame("r" = y_nr_tsp[,3],
                       "lower" = y_nr_tsp[,1],
                       "upper" = y_nr_tsp[,5],
-                      "nr_tsp" = export_nr_tsp$nr_tsp_pred)
+                      "nr_tsp" = 1:4)
 
 p1 <- ggplot(d_lntsp, aes(x = nr_tsp, y = r))
-p2 <- geom_line(size = 2)
-p3 <- geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3)
+p2 <- geom_line(size = 1, linetype = "dashed")
+p3 <- geom_point(size = 2)
+p4 <- geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.3)
+p5 <- annotate("text", x = c(2, 3), y = 20, label = "A", size = 10)
 
 png("figures/r_nr_tsp.png", 10000/4, 7000/4, "px", res = 600/4)
 
-p1 + p2 + p3 +
+p1 + p2 + p3 + p4 + p5 +
   ylab("expected stand richness") + 
   xlab("number of tree species") +
   theme_classic(40) 
@@ -89,9 +94,12 @@ dev.off()
 
 ## All percentages combined:
 
-y_all <- rbind(summary(export_srd$r_dec)$quantiles,
-               summary(export_srs$r_spruce)$quantiles,
-               summary(export_srp$r_pine)$quantiles)
+y_all <- rbind(summary(export_srd$r_dec)$quantiles[
+               1:length(export_srd$dec_pred), ],
+               summary(export_srs$r_spruce)$quantiles[
+               1:length(export_srs$spruce_pred), ],
+               summary(export_srp$r_pine)$quantiles[
+               1:length(export_srp$pine_pred), ])
 
 d_all <- data.frame("r" = y_all[,3],
                     "lower" = y_all[,1],
@@ -105,6 +113,16 @@ d_all <- data.frame("r" = y_all[,3],
                                            length(export_srs$spruce_pred)),
                                        rep("pine", 
                                            length(export_srp$pine_pred))))
+## Maxima:
+maxima <- data.frame("min" = c(export_srd$dec_max[1]/10,
+                               export_srs$spruce_max[1],
+                               export_srp$pine_max[1]/10),
+                     "max" = c(export_srd$dec_max[5]/10,
+                               export_srs$spruce_max[5],
+                               export_srp$pine_max[5]/10),
+                     "pos" = c(21, 19, 20),
+                     "tree_species" = c("deciduous", "spruce", "pine"))
+maxima$max[maxima$max >= 100] <- 100
 
 q1 <- ggplot(d_all, 
              aes(x = perc_tree*100, 
@@ -114,10 +132,13 @@ q1 <- ggplot(d_all,
                  lty = tree_species))
 q2 <- geom_line(size = 2)
 q3 <- geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .3, colour = NA)
-
+q4 <- geom_segment(data = maxima, 
+                   aes(x = min, y = pos, xend = max, yend = pos, color = tree_species),
+                   size = 3) 
+  
 png("figures/r_all_quad.png", 10000/4, 7000/4, "px", res = 600/4)
 
-q1 + q2 + q3 +
+q1 + q2 + q3 + q4 +
   ylab("expected stand richness") + 
   xlab("percentage of trees") +
   scale_color_manual(breaks = c("deciduous", "pine", "spruce"), 

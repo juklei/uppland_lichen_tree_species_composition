@@ -147,7 +147,7 @@ ANOVA_diff <- lapply(zj_diff,
 ANOVA_prob <- lapply(zj_diff, function(x) 1-ecdf(x)(0)) 
 
 ## Print and export:
-capture.output(print("95% Confidence Intervals"),
+capture.output(print("95% Credible Intervals"),
                as.data.frame(ANOVA_diff),
                print("P(diff >= 0)"),
                as.matrix(ANOVA_prob)) %>%

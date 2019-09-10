@@ -58,9 +58,9 @@ data <- list(nrep = dim(sad)[2],
              dec = scale(sad_tree$dec),
              spruce = scale(sad_tree$spruce),
              pine = scale(sad_tree$pine),
-             nr_tsp = scale(sad_tree$nr_tsp),
-             dec1 = ifelse(sad_tree$nr_dec == 1, 1, 0),
-             dec2 = ifelse(sad_tree$nr_dec > 1, 1, 0),
+             tsp_2 = ifelse(sad_tree$nr_tsp == 2, 1, 0),
+             tsp_3 = ifelse(sad_tree$nr_tsp == 3, 1, 0),
+             tsp_4 = ifelse(sad_tree$nr_tsp == 4, 1, 0),
              dbh = scale(sad_tree$dbh))
 
 capture.output(cor(as.data.frame(data[5:11]))) %>% 
@@ -77,62 +77,56 @@ inits <- list(list(plot_richness = sample(1:50, data$nplot, replace = TRUE),
                    sat_speed = sample(1:10, data$nplot, replace = TRUE),
                    sigma_rich = 2,
                    sigma_sat = 2,
-                   alpha_rich = 29,
+                   alpha = 29,
                    mu_sat = 5,
-                   beta_dec_rich = 1,
-                   beta2_dec_rich = 1,
-                   beta_dec_sat = 0.1,
-                   beta_spruce_rich = 1,
-                   beta2_spruce_rich = 1,
-                   beta_spruce_sat = 0.1,
-                   beta_pine_rich = 1,
-                   beta2_pine_rich = 1,
-                   beta_pine_sat = 0.1,
-                   beta_dbh_rich = 0.2,
-                   beta_dbh_sat = 0.1,
-                   beta_nr_tsp = 0.1),
+                   beta_dec = 1,
+                   beta2_dec = 1,
+                   beta_spruce = 0.5,
+                   beta2_spruce = 0.5,
+                   beta_pine = 1,
+                   beta2_pine = 1,
+                   beta_dbh = 0.2,
+                   beta_2tsp = 0.1,
+                   beta_3tsp = 0.1,
+                   beta_4tsp = 0.1),
               list(plot_richness = sample(1:50, data$nplot, replace = TRUE),
                    sat_speed = sample(1:10, data$nplot, replace = TRUE),
                    sigma_rich = 5,
                    sigma_sat = 1,
-                   alpha_rich = 40,
+                   alpha = 40,
                    mu_sat = 7,
-                   beta_dec_rich = -1,
-                   beta2_dec_rich = -1,
-                   beta_dec_sat = -0.1,
-                   beta_spruce_rich = -1,
-                   beta2_spruce_rich = -1,
-                   beta_spruce_sat = -0.1,
-                   beta_pine_rich = -1,
-                   beta2_pine_rich = -1,
-                   beta_pine_sat = -0.1,
-                   beta_dbh_rich = -0.2,
-                   beta_dbh_sat = -0.1,
-                   beta_nr_tsp = -0.1),
+                   beta_dec = -1,
+                   beta2_dec = -1,
+                   beta_spruce = -0.5,
+                   beta2_spruce = -0.5,
+                   beta_pine = -1,
+                   beta2_pine = -1,
+                   beta_dbh = -0.2,
+                   beta_2tsp = -0.1,
+                   beta_3tsp = -0.1,
+                   beta_4tsp = -0.1),
               list(plot_richness = sample(1:50, data$nplot, replace = TRUE),
                    sat_speed = sample(1:10, data$nplot, replace = TRUE),
                    sigma_rich = 1,
                    sigma_sat = 1,
-                   alpha_rich = 15,
+                   alpha = 15,
                    mu_sat = 1,
-                   beta_dec_rich = 0,
-                   beta2_dec_rich = 0,
-                   beta_dec_sat = 0,
-                   beta_spruce_rich = 0,
-                   beta2_spruce_rich = 0,
-                   beta_spruce_sat = 0,
-                   beta_pine_rich = 0,
-                   beta2_pine_rich = 0,
-                   beta_pine_sat = 0,
-                   beta_dbh_rich = 0,
-                   beta_dbh_sat = 0,
-                   beta_nr_tsp = 0))
+                   beta_dec = 0.1,
+                   beta2_dec = 0.1,
+                   beta_spruce = 0.1,
+                   beta2_spruce = 0.1,
+                   beta_pine = 0.1,
+                   beta2_pine = 0.1,
+                   beta_dbh = 0,
+                   beta_2tsp = 0,
+                   beta_3tsp = 0,
+                   beta_4tsp = 0))
 
 model <- "scripts/JAGS/lichen_JAGS_lpsac.R"
 
 start <- Sys.time()
 
-samples <- 10000; n.thin <- 10
+samples <- 1000; n.thin <- 10
 
 ## Model selection with one chain:
 
@@ -161,25 +155,35 @@ parJagsModel(cl = cl,
              inits = inits, 
              n.chains = 3) 
 
-parUpdate(cl = cl, object = "lpsac", n.iter = 10000)
+parUpdate(cl = cl, object = "lpsac", n.iter = 1000)
 
 zc <- parCodaSamples(cl = cl, model = "lpsac",
                      variable.names = c("sigma_sat",
                                         "sigma_rich",
-                                        "alpha_rich",
+                                        "alpha",
                                         "mu_sat",
-                                        "beta_dec_rich",
-                                        "beta2_dec_rich",
-                                        "beta_dec_sat",
-                                        "beta_spruce_rich",
-                                        "beta2_spruce_rich",
-                                        "beta_spruce_sat",
-                                        "beta_pine_rich",
-                                        "beta2_pine_rich",
-                                        "beta_pine_sat",
-                                        "beta_dbh_rich",
-                                        "beta_dbh_sat",
-                                        "beta_nr_tsp_rich"),
+                                        "beta_dec",
+                                        "beta2_dec",
+                                        "dec_max",
+                                        "diff_100vs0_dec",
+                                        "beta_spruce",
+                                        "beta2_spruce",
+                                        "spruce_max",
+                                        "diff_100vs0_spruce",
+                                        "beta_pine",
+                                        "beta2_pine",
+                                        "pine_max",
+                                        "diff_100vs0_pine",
+                                        "beta_dbh",
+                                        "beta_2tsp",
+                                        "beta_3tsp",
+                                        "beta_4tsp",
+                                        "diff_21",
+                                        "diff_31",
+                                        "diff_41",
+                                        "diff_32",
+                                        "diff_42",
+                                        "diff_43"),
                      n.iter = samples, 
                      thin = n.thin)
 
@@ -188,16 +192,27 @@ end-start
 
 ## Export parameter estimates:
 capture.output(summary(zc), HPDinterval(zc, prob = 0.95)) %>% 
-  write(., "results/parameters_lpsac_spruce_normal_quad_sat_model.txt")
+  write(., "results/parameters_lpsac_nr_tsp_normal_sat_model.txt")
+
+## Extract probability that difference is bigger than 0:
+ANOVA_prob <- data.frame("cat" = colnames(zc[[1]])[6:11],
+                         "prob" = rep(NA, 6))
+for(i in 1:6){
+  ANOVA_prob$prob[i] <- 1-ecdf(unlist(zc[, paste(ANOVA_prob$cat[i])]))(0)
+}
+
+## Print and export:
+capture.output(print("P(diff >= 0)"), as.matrix(ANOVA_prob)) %>%
+  write(., "results/ANOVA_results_lpsac.txt")
 
 ## 5. Validate the model and export validation data and figures ----------------
 
-pdf("figures/plot_zc_lpsac_spruce_normal_quad_sat_model.pdf")
+pdf("figures/plot_zc_lpsac_nr_tsp_normal_sat_model.pdf")
 plot(zc)
 dev.off()
 
 capture.output(raftery.diag(zc), heidel.diag(zc)) %>% 
-  write(., "results/diagnostics_lpsac_spruce_normal_quad_sat_model.txt")
+  write(., "results/diagnostics_lpsac_nr_tsp_normal_sat_model.txt")
 
 # ## Produce validation metrics:
 # zj_val <- jags.samples(jm,
@@ -233,22 +248,40 @@ capture.output(raftery.diag(zc), heidel.diag(zc)) %>%
 ## 6. Produce and export figures -----------------------------------------------
 
 zj_pred <- parCodaSamples(cl = cl, model = "lpsac",
-                          variable.names = c("r_dec", "r_spruce", "r_pine"),
-                          n.iter = 10000, 
-                          thin = 10)
+                          variable.names = c("r_dec", 
+                                             "r_spruce", 
+                                             "r_pine", 
+                                             "dec_max", 
+                                             "spruce_max", 
+                                             "pine_max", 
+                                             "r_1tsp",
+                                             "r_2tsp",
+                                             "r_3tsp",
+                                             "r_4tsp"),
+                          n.iter = 2000, 
+                          thin = 5)
 
 # export_srd <- list("r_dec" = zj_pred,
-#                    "dec_pred" = backscale(data$dec_pred, data$dec))
+#                    "dec_pred" = backscale(data$dec_pred, data$dec),
+#                    "dec_max" = backscale(summary(zj_pred)$quantiles[length(data$dec_pred) + 1, ],
+#                                          data$dec)*100)
 # save(export_srd, file = "clean/sac_pred_r_dec.rda")
 
-export_srs <- list("r_spruce" = zj_pred,
-                   "spruce_pred" = backscale(data$spruce_pred, data$spruce))
-save(export_srs, file = "clean/sac_pred_r_spruce.rda")
+# export_srs <- list("r_spruce" = zj_pred,
+#                    "spruce_pred" = backscale(data$spruce_pred, data$spruce),
+#                    "spruce_max" = backscale(summary(zj_pred)$quantiles[length(data$spruce_pred) + 1, ], 
+#                                             data$spruce)*100)
+# save(export_srs, file = "clean/sac_pred_r_spruce.rda")
 
 # export_srp <- list("r_pine" = zj_pred,
-#                    "pine_pred" = backscale(data$pine_pred, data$pine))
+#                    "pine_pred" = backscale(data$pine_pred, data$pine),
+#                    "pine_max" = backscale(summary(zj_pred)$quantiles[length(data$pine_pred) + 1, ],
+#                                           data$pine)*100)
 # save(export_srp, file = "clean/sac_pred_r_pine.rda")
-# 
-# stopCluster(cl)
+
+export_srntsp <- zj_pred
+save(export_srntsp, file = "clean/sac_pred_r_nr_tsp.rda")
+
+stopCluster(cl)
 
 ## -------------------------------END-------------------------------------------

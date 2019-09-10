@@ -20,51 +20,41 @@ model{
   ## Process model:
   for(p in 1:nplot){
     ## Richness:
-    # plot_richness[p] ~ dpois(lambda_rich[p])
-    # log(lambda_rich[p]) <- alpha_rich + 
     plot_richness[p] ~ dnorm(mu_rich[p], 1/sigma_rich^2)
     # pr_sim[p] ~ dnorm(mu_rich[p], 1/sigma_rich^2)
-    mu_rich[p] <- alpha_rich +
-                  # beta_dec_rich*dec[p,1] +
-                  # beta2_dec_rich*dec[p,1]^2 +
-                  beta_spruce_rich*spruce[p,1] +
-                  beta2_spruce_rich*spruce[p,1]^2 +
-                  # beta_pine_rich*pine[p,1] +
-                  # beta2_pine_rich*pine[p,1]^2 +
-                  # beta_nr_tsp_rich*nr_tsp[p,1] +
-                  beta_dbh_rich*dbh[p,1]
+    mu_rich[p] <- alpha +
+                  # beta_dec*dec[p,1] +
+                  # beta2_dec*dec[p,1]^2 +
+                  # beta_spruce*spruce[p,1] +
+                  # beta2_spruce*spruce[p,1]^2 +
+                  # beta_pine*pine[p,1] +
+                  # beta2_pine*pine[p,1]^2 +
+                  beta_2tsp*tsp_2[p] +
+                  beta_3tsp*tsp_3[p] +
+                  beta_4tsp*tsp_4[p] +
+                  beta_dbh*dbh[p,1]
     ## Saturation:
-    # sat_speed[p] ~ dpois(lambda_sat[p])
-    # log(lambda_sat[p]) <- alpha_sat +
     sat_speed[p] ~ dnorm(mu_sat, 1/sigma_sat^2)
-    # mu_sat[p] <- alpha_sat +
-    #              beta_dec_sat*dec[p,1] +
-    #              beta_spruce_sat*spruce[p,1] +
-    #              beta_pine_sat*pine[p,1] +
-    #              beta_dbh_sat*dbh[p,1]
   }
   
   ## Priors:
   
-  # for(p in 1:nplot){sat_speed[p] ~ dunif(1, 10)}
-  
   sigma_rich ~ dgamma(0.001, 0.001)
-  sigma_sat ~ dgamma(0.001, 0.001)
-  alpha_rich ~ dgamma(0.001, 0.001)
+  alpha ~ dgamma(0.001, 0.001)
+  # beta_dec ~ dnorm(0, 0.001)
+  # beta2_dec ~ dnorm(0, 0.001)
+  # beta_spruce ~ dnorm(0, 0.001)
+  # beta2_spruce ~ dnorm(0, 0.001)
+  # beta_pine ~ dnorm(0, 0.001)
+  # beta2_pine ~ dnorm(0, 0.001)
+  beta_2tsp ~ dnorm(0, 0.001)
+  beta_3tsp ~ dnorm(0, 0.001)
+  beta_4tsp ~ dnorm(0, 0.001)
+  # beta2_nr_tsp ~ dnorm(0, 0.001)
+  beta_dbh ~ dnorm(0, 0.001)
   mu_sat ~ dunif(1, 10)
-  # beta_dec_rich ~ dnorm(0, 0.001)
-  # beta2_dec_rich ~ dnorm(0, 0.001)
-  # beta_dec_sat ~ dnorm(0, 0.001)
-  beta_spruce_rich ~ dnorm(0, 0.001)
-  beta2_spruce_rich ~ dnorm(0, 0.001)
-  # beta_spruce_sat ~ dnorm(0, 0.001)
-  # beta_pine_rich ~ dnorm(0, 0.001)
-  # beta2_pine_rich ~ dnorm(0, 0.001)
-  # beta_pine_sat ~ dnorm(0, 0.001)
-  # beta_nr_tsp_rich ~ dnorm(0, 0.001)
-  beta_dbh_rich ~ dnorm(0, 0.001)
-  # beta_dbh_sat ~ dnorm(0, 0.001)
-  
+  sigma_sat ~ dgamma(0.001, 0.001)
+
   ## Predictions:
   
   # ## For plotting the species accumulation curve:
@@ -73,23 +63,51 @@ model{
   #       obs_pred[m,p] ~ dpois((plot_richness[p]*(m-1))/(sat_speed[p] + (m-1)))
   # }}
 
-  # for(q in 1:length(dec_pred)){
-  #   r_dec[q] <- alpha_rich +
-  #               beta_dec_rich*dec_pred[q] +
-  #               beta2_dec_rich*dec_pred[q]^2
+  # # Plotting predictions for tree species percentages:
+  # for(m in 1:length(dec_pred)){
+  #   r_dec[m] <- alpha +
+  #               beta_dec*dec_pred[m] +
+  #               beta2_dec*dec_pred[m]^2
   # }
+  # ## Maximum:
+  # dec_max <- - beta_dec/(2*beta2_dec)
+  # ## Non-presence vs. monoculture:
+  # diff_100vs0_dec <- beta_dec*(dec_pred[length(dec_pred)] - dec_pred[1]) +
+  #                    beta2_dec*(dec_pred[length(dec_pred)]^2 - dec_pred[1]^2)
   
-  for(m in 1:length(spruce_pred)){
-    r_spruce[m] <- alpha_rich +
-                   beta_spruce_rich*spruce_pred[m] +
-                   beta2_spruce_rich*spruce_pred[m]^2
-  }
-  
+  # for(m in 1:length(spruce_pred)){
+  #   r_spruce[m] <- alpha +
+  #                  beta_spruce*spruce_pred[m] +
+  #                  beta2_spruce*spruce_pred[m]^2
+  # }
+  # spruce_max <- - beta_spruce/(2*beta2_spruce)
+  # diff_100vs0_spruce <- beta_spruce*(spruce_pred[length(spruce_pred)] -
+  #                                    spruce_pred[1]) +
+  #                       beta2_spruce*(spruce_pred[length(spruce_pred)]^2 -
+  #                                     spruce_pred[1]^2)
+    
   # for(m in 1:length(pine_pred)){
-  #   r_pine[m] <- alpha_rich +
-  #                beta_pine_rich*pine_pred[m] +
-  #                beta2_pine_rich*pine_pred[m]^2
+  #   r_pine[m] <- alpha +
+  #                beta_pine*pine_pred[m] +
+  #                beta2_pine*pine_pred[m]^2
   # }
-
+  # pine_max <- - beta_pine/(2*beta2_pine)
+  # diff_100vs0_pine <- beta_pine*(pine_pred[length(pine_pred)] - pine_pred[1]) +
+  #                     beta2_pine*(pine_pred[length(pine_pred)]^2 -
+  #                                 pine_pred[1]^2)
+  
+  ## Number of tree species:
+  r_1tsp <- alpha
+  r_2tsp <- alpha + beta_2tsp
+  r_3tsp <- alpha + beta_3tsp
+  r_4tsp <- alpha + beta_4tsp
+  
+  diff_21 <- r_2tsp - r_1tsp
+  diff_31 <- r_3tsp - r_1tsp
+  diff_41 <- r_4tsp - r_1tsp
+  diff_32 <- r_3tsp - r_2tsp
+  diff_42 <- r_4tsp - r_2tsp
+  diff_43 <- r_4tsp - r_3tsp
+  
 }
 
