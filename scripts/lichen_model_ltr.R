@@ -94,7 +94,7 @@ jm <- jags.model(model,
                  data = data,
                  n.adapt = 5000, 
                  inits = inits, 
-                 n.chains = 1) 
+                 n.chains = 3) 
 
 burn.in <-  10000
 

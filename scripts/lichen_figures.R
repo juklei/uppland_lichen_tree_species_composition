@@ -10,6 +10,7 @@
 rm(list = ls())
 
 require("ggplot2")
+require("ggpubr")
 require("rjags")
 require("data.table")
 
@@ -49,10 +50,16 @@ d_ls$species <- factor(d_ls$species,
 g1 <- ggplot(d_ls, aes(x = species, y = richness))
 g2 <- geom_point(size = 2)
 g3 <- geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.3)
+g4 <- annotate("text", 
+               x = c("birch", "oak", "alder", "pine", "spruce"), 
+               y = 5, 
+               label = c("A", "A,B,C", "B", "B", "C"), 
+               size = 10)
 
 png("figures/ltr_tsp.png", 10000/4, 7000/4, "px", res = 600/4)
 
-g1 + g2 + g3 + theme_classic(40) + ylab("lichen richness per tree")
+g1 + g2 + g3 + g4 + theme_classic(40) + ylab("lichen richness per tree") + 
+  xlab("")
 
 dev.off()
 
@@ -60,11 +67,11 @@ dev.off()
 
 ## Nr. tree species:
 
-y_nr_tsp <- summary(export_nr_tsp$r_nr_tsp, quantile, c(.025,.5,.975))$stat
+y_nr_tsp <- summary(export_nr_tsp$r_nr_tsp)$quantiles
 
-d_lntsp <- data.frame("r" = t(y_nr_tsp)[,2],
-                      "lower" = t(y_nr_tsp)[,1],
-                      "upper" = t(y_nr_tsp)[,3],
+d_lntsp <- data.frame("r" = y_nr_tsp[,3],
+                      "lower" = y_nr_tsp[,1],
+                      "upper" = y_nr_tsp[,5],
                       "nr_tsp" = export_nr_tsp$nr_tsp_pred)
 
 p1 <- ggplot(d_lntsp, aes(x = nr_tsp, y = r))
@@ -82,22 +89,22 @@ dev.off()
 
 ## All percentages combined:
 
-y_all <- cbind(summary(export_srd$r_dec, quantile, c(.025,.5,.975))$stat,
-               summary(export_srs$r_spruce, quantile, c(.025,.5,.975))$stat,
-               summary(export_srp$r_pine, quantile, c(.025,.5,.975))$stat)
+y_all <- rbind(summary(export_srd$r_dec)$quantiles,
+               summary(export_srs$r_spruce)$quantiles,
+               summary(export_srp$r_pine)$quantiles)
 
-d_all <- data.frame("r" = t(y_all)[,2],
-                   "lower" = t(y_all)[,1],
-                   "upper" = t(y_all)[,3],
-                   "perc_tree" = c(export_srd$dec_pred,
-                                   export_srs$spruce_pred,
-                                   export_srp$pine_pred),
-                   "tree_species" = c(rep("deciduous", 
-                                          length(export_srd$dec_pred)),
-                                      rep("spruce", 
-                                          length(export_srs$spruce_pred)),
-                                      rep("pine", 
-                                          length(export_srp$pine_pred))))
+d_all <- data.frame("r" = y_all[,3],
+                    "lower" = y_all[,1],
+                    "upper" = y_all[,5],
+                    "perc_tree" = c(export_srd$dec_pred,
+                                    export_srs$spruce_pred,
+                                    export_srp$pine_pred),
+                    "tree_species" = c(rep("deciduous", 
+                                           length(export_srd$dec_pred)),
+                                       rep("spruce", 
+                                           length(export_srs$spruce_pred)),
+                                       rep("pine", 
+                                           length(export_srp$pine_pred))))
 
 q1 <- ggplot(d_all, 
              aes(x = perc_tree*100, 
@@ -108,17 +115,17 @@ q1 <- ggplot(d_all,
 q2 <- geom_line(size = 2)
 q3 <- geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .3, colour = NA)
 
-png("figures/r_all.png", 10000/4, 7000/4, "px", res = 600/4)
+png("figures/r_all_quad.png", 10000/4, 7000/4, "px", res = 600/4)
 
 q1 + q2 + q3 +
   ylab("expected stand richness") + 
   xlab("percentage of trees") +
   scale_color_manual(breaks = c("deciduous", "pine", "spruce"), 
-                     values = c("blue", "red", "black")) + 
+                     values = c("black", "red", "blue")) + 
   scale_fill_manual(breaks = c("deciduous", "pine", "spruce"),
-                    values = c("blue", "red", "black")) +
+                    values = c("black", "red", "blue")) +
   theme_classic(40) +                  
-  theme(legend.position = c(0.15, 0.75), 
+  theme(legend.position = c(0.15, 0.15), 
         legend.title = element_blank(),
         legend.key.size = unit(3, 'lines'))
 
