@@ -126,7 +126,7 @@ model <- "scripts/JAGS/lichen_JAGS_lpsac.R"
 
 start <- Sys.time()
 
-samples <- 1000; n.thin <- 10
+samples <- 10000; n.thin <- 10
 
 ## Model selection with one chain:
 
@@ -155,7 +155,7 @@ parJagsModel(cl = cl,
              inits = inits, 
              n.chains = 3) 
 
-parUpdate(cl = cl, object = "lpsac", n.iter = 1000)
+parUpdate(cl = cl, object = "lpsac", n.iter = 5000)
 
 zc <- parCodaSamples(cl = cl, model = "lpsac",
                      variable.names = c("sigma_sat",
@@ -192,27 +192,27 @@ end-start
 
 ## Export parameter estimates:
 capture.output(summary(zc), HPDinterval(zc, prob = 0.95)) %>% 
-  write(., "results/parameters_lpsac_nr_tsp_normal_sat_model.txt")
+  write(., "results/parameters_lpsac_dec_normal_quad_sat_model.txt")
 
-## Extract probability that difference is bigger than 0:
-ANOVA_prob <- data.frame("cat" = colnames(zc[[1]])[6:11],
-                         "prob" = rep(NA, 6))
-for(i in 1:6){
-  ANOVA_prob$prob[i] <- 1-ecdf(unlist(zc[, paste(ANOVA_prob$cat[i])]))(0)
-}
-
-## Print and export:
-capture.output(print("P(diff >= 0)"), as.matrix(ANOVA_prob)) %>%
-  write(., "results/ANOVA_results_lpsac.txt")
+# ## Extract probability that difference between nr_tsp is bigger than 0:
+# ANOVA_prob <- data.frame("cat" = colnames(zc[[1]])[6:11],
+#                          "prob" = rep(NA, 6))
+# for(i in 1:6){
+#   ANOVA_prob$prob[i] <- 1-ecdf(unlist(zc[, paste(ANOVA_prob$cat[i])]))(0)
+# }
+# 
+# ## Print and export:
+# capture.output(print("P(diff >= 0)"), as.matrix(ANOVA_prob)) %>%
+#   write(., "results/ANOVA_results_lpsac.txt")
 
 ## 5. Validate the model and export validation data and figures ----------------
 
-pdf("figures/plot_zc_lpsac_nr_tsp_normal_sat_model.pdf")
+pdf("figures/plot_zc_lpsac_dec_normal_quad_sat_model.pdf")
 plot(zc)
 dev.off()
 
 capture.output(raftery.diag(zc), heidel.diag(zc)) %>% 
-  write(., "results/diagnostics_lpsac_nr_tsp_normal_sat_model.txt")
+  write(., "results/diagnostics_lpsac_dec_normal_quad_sat_model.txt")
 
 # ## Produce validation metrics:
 # zj_val <- jags.samples(jm,
@@ -258,29 +258,29 @@ zj_pred <- parCodaSamples(cl = cl, model = "lpsac",
                                              "r_2tsp",
                                              "r_3tsp",
                                              "r_4tsp"),
-                          n.iter = 2000, 
-                          thin = 5)
+                          n.iter = 10000, 
+                          thin = 10)
 
-# export_srd <- list("r_dec" = zj_pred,
-#                    "dec_pred" = backscale(data$dec_pred, data$dec),
-#                    "dec_max" = backscale(summary(zj_pred)$quantiles[length(data$dec_pred) + 1, ],
-#                                          data$dec)*100)
-# save(export_srd, file = "clean/sac_pred_r_dec.rda")
+export_srd <- list("r_dec" = zj_pred[, colnames(zj_pred[[1]]) != "dec_max"],
+                   "dec_pred" = backscale(data$dec_pred, data$dec),
+                   "dec_max" = backscale(summary(zj_pred[, "dec_max"])$quantiles, data$dec),
+                   "dec_max_all" = backscale(unlist(zj_pred[, "dec_max"]), data$dec))
+save(export_srd, file = "clean/sac_pred_r_dec.rda")
 
-# export_srs <- list("r_spruce" = zj_pred,
+# export_srs <- list("r_spruce" = zj_pred[, colnames(zj_pred[[1]]) != "spruce_max"],
 #                    "spruce_pred" = backscale(data$spruce_pred, data$spruce),
-#                    "spruce_max" = backscale(summary(zj_pred)$quantiles[length(data$spruce_pred) + 1, ], 
-#                                             data$spruce)*100)
+#                    "spruce_max" = backscale(summary(zj_pred[, "spruce_max"])$quantiles, data$spruce),
+#                    "spruce_max_all" = backscale(unlist(zj_pred[, "spruce_max"]), data$spruce))
 # save(export_srs, file = "clean/sac_pred_r_spruce.rda")
 
-# export_srp <- list("r_pine" = zj_pred,
+# export_srp <- list("r_pine" = zj_pred[, colnames(zj_pred[[1]]) != "pine_max"],
 #                    "pine_pred" = backscale(data$pine_pred, data$pine),
-#                    "pine_max" = backscale(summary(zj_pred)$quantiles[length(data$pine_pred) + 1, ],
-#                                           data$pine)*100)
+#                    "pine_max" = backscale(summary(zj_pred[, "pine_max"])$quantiles, data$pine),
+#                    "pine_max_all" = backscale(unlist(zj_pred[, "pine_max"]), data$pine))
 # save(export_srp, file = "clean/sac_pred_r_pine.rda")
 
-export_srntsp <- zj_pred
-save(export_srntsp, file = "clean/sac_pred_r_nr_tsp.rda")
+# export_srntsp <- zj_pred
+# save(export_srntsp, file = "clean/sac_pred_r_nr_tsp.rda")
 
 stopCluster(cl)
 

@@ -1,7 +1,7 @@
 ## lichen lpsac model
 ##
 ## First edit: 20190605
-## Last edit: 201906118
+## Last edit: 20190911
 ##
 ## Author: Julian Klein
 
@@ -23,15 +23,15 @@ model{
     plot_richness[p] ~ dnorm(mu_rich[p], 1/sigma_rich^2)
     # pr_sim[p] ~ dnorm(mu_rich[p], 1/sigma_rich^2)
     mu_rich[p] <- alpha +
-                  # beta_dec*dec[p,1] +
-                  # beta2_dec*dec[p,1]^2 +
+                  beta_dec*dec[p,1] +
+                  beta2_dec*dec[p,1]^2 +
                   # beta_spruce*spruce[p,1] +
                   # beta2_spruce*spruce[p,1]^2 +
                   # beta_pine*pine[p,1] +
                   # beta2_pine*pine[p,1]^2 +
-                  beta_2tsp*tsp_2[p] +
-                  beta_3tsp*tsp_3[p] +
-                  beta_4tsp*tsp_4[p] +
+                  # beta_2tsp*tsp_2[p] +
+                  # beta_3tsp*tsp_3[p] +
+                  # beta_4tsp*tsp_4[p] +
                   beta_dbh*dbh[p,1]
     ## Saturation:
     sat_speed[p] ~ dnorm(mu_sat, 1/sigma_sat^2)
@@ -41,15 +41,15 @@ model{
   
   sigma_rich ~ dgamma(0.001, 0.001)
   alpha ~ dgamma(0.001, 0.001)
-  # beta_dec ~ dnorm(0, 0.001)
-  # beta2_dec ~ dnorm(0, 0.001)
+  beta_dec ~ dnorm(0, 0.001)
+  beta2_dec ~ dnorm(0, 0.001)
   # beta_spruce ~ dnorm(0, 0.001)
   # beta2_spruce ~ dnorm(0, 0.001)
   # beta_pine ~ dnorm(0, 0.001)
   # beta2_pine ~ dnorm(0, 0.001)
-  beta_2tsp ~ dnorm(0, 0.001)
-  beta_3tsp ~ dnorm(0, 0.001)
-  beta_4tsp ~ dnorm(0, 0.001)
+  # beta_2tsp ~ dnorm(0, 0.001)
+  # beta_3tsp ~ dnorm(0, 0.001)
+  # beta_4tsp ~ dnorm(0, 0.001)
   # beta2_nr_tsp ~ dnorm(0, 0.001)
   beta_dbh ~ dnorm(0, 0.001)
   mu_sat ~ dunif(1, 10)
@@ -63,17 +63,17 @@ model{
   #       obs_pred[m,p] ~ dpois((plot_richness[p]*(m-1))/(sat_speed[p] + (m-1)))
   # }}
 
-  # # Plotting predictions for tree species percentages:
-  # for(m in 1:length(dec_pred)){
-  #   r_dec[m] <- alpha +
-  #               beta_dec*dec_pred[m] +
-  #               beta2_dec*dec_pred[m]^2
-  # }
-  # ## Maximum:
-  # dec_max <- - beta_dec/(2*beta2_dec)
-  # ## Non-presence vs. monoculture:
-  # diff_100vs0_dec <- beta_dec*(dec_pred[length(dec_pred)] - dec_pred[1]) +
-  #                    beta2_dec*(dec_pred[length(dec_pred)]^2 - dec_pred[1]^2)
+  # Plotting predictions for tree species percentages:
+  for(m in 1:length(dec_pred)){
+    r_dec[m] <- alpha +
+                beta_dec*dec_pred[m] +
+                beta2_dec*dec_pred[m]^2
+  }
+  ## Maximum:
+  dec_max <- - beta_dec/(2*beta2_dec)
+  ## Non-presence vs. monoculture:
+  diff_100vs0_dec <- beta_dec*(dec_pred[length(dec_pred)] - dec_pred[1]) +
+                     beta2_dec*(dec_pred[length(dec_pred)]^2 - dec_pred[1]^2)
   
   # for(m in 1:length(spruce_pred)){
   #   r_spruce[m] <- alpha +
@@ -96,18 +96,18 @@ model{
   #                     beta2_pine*(pine_pred[length(pine_pred)]^2 -
   #                                 pine_pred[1]^2)
   
-  ## Number of tree species:
-  r_1tsp <- alpha
-  r_2tsp <- alpha + beta_2tsp
-  r_3tsp <- alpha + beta_3tsp
-  r_4tsp <- alpha + beta_4tsp
-  
-  diff_21 <- r_2tsp - r_1tsp
-  diff_31 <- r_3tsp - r_1tsp
-  diff_41 <- r_4tsp - r_1tsp
-  diff_32 <- r_3tsp - r_2tsp
-  diff_42 <- r_4tsp - r_2tsp
-  diff_43 <- r_4tsp - r_3tsp
+  # ## Number of tree species:
+  # r_1tsp <- alpha
+  # r_2tsp <- alpha + beta_2tsp
+  # r_3tsp <- alpha + beta_3tsp
+  # r_4tsp <- alpha + beta_4tsp
+  # 
+  # diff_21 <- r_2tsp - r_1tsp
+  # diff_31 <- r_3tsp - r_1tsp
+  # diff_41 <- r_4tsp - r_1tsp
+  # diff_32 <- r_3tsp - r_2tsp
+  # diff_42 <- r_4tsp - r_2tsp
+  # diff_43 <- r_4tsp - r_3tsp
   
 }
 

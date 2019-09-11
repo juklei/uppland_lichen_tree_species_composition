@@ -11,12 +11,23 @@ rm(list = ls())
 
 require("ggplot2")
 require("ggpubr")
+require("cowplot")
 require("rjags")
 require("data.table")
 
 ## 2. Define or source functions used in this script ---------------------------
 
-#...
+theme0 <- function(...) theme(legend.position = "none",
+                              panel.background = element_blank(),
+                              panel.grid.major = element_blank(),
+                              panel.grid.minor = element_blank(),
+                              axis.ticks = element_blank(),
+                              axis.text.x = element_blank(),
+                              axis.text.y = element_blank(),
+                              axis.title.x = element_blank(),
+                              axis.title.y = element_blank(),
+                              axis.ticks.length = unit(0, "null"),
+                              panel.border = element_blank(), ...)
 
 ## 3. Load and explore data ----------------------------------------------------
 
@@ -114,16 +125,20 @@ d_all <- data.frame("r" = y_all[,3],
                                        rep("pine", 
                                            length(export_srp$pine_pred))))
 ## Maxima:
-maxima <- data.frame("min" = c(export_srd$dec_max[1]/10,
-                               export_srs$spruce_max[1],
-                               export_srp$pine_max[1]/10),
-                     "max" = c(export_srd$dec_max[5]/10,
-                               export_srs$spruce_max[5],
-                               export_srp$pine_max[5]/10),
-                     "pos" = c(21, 19, 20),
-                     "tree_species" = c("deciduous", "spruce", "pine"))
-maxima$max[maxima$max >= 100] <- 100
+maxima <- data.frame("value" = c(export_srd$dec_max_all,
+                                 export_srs$spruce_max_all,
+                                 export_srp$pine_max_all),
+                     "tree_species" = c(rep("deciduous", length(export_srd$dec_max_all)),
+                                        rep("spruce", length(export_srs$spruce_max_all)),
+                                        rep("pine", length(export_srp$pine_max_all))))
 
+## Style for both:
+s1 <- scale_color_manual(breaks = c("deciduous", "pine", "spruce"), 
+                         values = c("#ffc425", "#d11141", "black"))
+s2 <- scale_fill_manual(breaks = c("deciduous", "pine", "spruce"),
+                        values = c("#ffc425", "#d11141", "black"))
+
+## Predictions:
 q1 <- ggplot(d_all, 
              aes(x = perc_tree*100, 
                  y = r, 
@@ -131,24 +146,29 @@ q1 <- ggplot(d_all,
                  color = tree_species,
                  lty = tree_species))
 q2 <- geom_line(size = 2)
-q3 <- geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .3, colour = NA)
-q4 <- geom_segment(data = maxima, 
-                   aes(x = min, y = pos, xend = max, yend = pos, color = tree_species),
-                   size = 3) 
-  
-png("figures/r_all_quad.png", 10000/4, 7000/4, "px", res = 600/4)
+q3 <- geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .2, colour = NA)
+Q <- q1 + q2 + q3 +
+     ylab("expected stand richness") + 
+     xlab("percentage of trees") +
+     s1 + s2 +
+     theme_classic(40) +                  
+     theme(legend.position = c(0.29, 0.10), 
+           legend.title = element_blank(),
+           legend.key.size = unit(3, 'lines'),
+           legend.direction = "horizontal")
 
-q1 + q2 + q3 + q4 +
-  ylab("expected stand richness") + 
-  xlab("percentage of trees") +
-  scale_color_manual(breaks = c("deciduous", "pine", "spruce"), 
-                     values = c("black", "red", "blue")) + 
-  scale_fill_manual(breaks = c("deciduous", "pine", "spruce"),
-                    values = c("black", "red", "blue")) +
-  theme_classic(40) +                  
-  theme(legend.position = c(0.15, 0.15), 
-        legend.title = element_blank(),
-        legend.key.size = unit(3, 'lines'))
+## Maxima:
+p1 <- ggplot(data = maxima_all, 
+             aes(x = value*100, 
+                 color = tree_species, 
+                 fill = tree_species,
+                 lty = tree_species))
+p2 <- geom_density(alpha = .2)
+P <- p1 + p2 + xlim(0, 100) + s1 + s2 + theme0()
+  
+png("figures/r_all_quad.png", 10000/4, 9000/4, "px", res = 600/4)
+
+plot_grid(P, Q, align = "v", nrow = 2, rel_heights = c(1/5, 4/5))
 
 dev.off()
 
