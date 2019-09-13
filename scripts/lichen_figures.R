@@ -91,10 +91,10 @@ d_lntsp <- data.frame("r" = y_nr_tsp[,3],
 p1 <- ggplot(d_lntsp, aes(x = nr_tsp, y = r))
 p2 <- geom_line(size = 1, linetype = "dashed")
 p3 <- geom_point(size = 2)
-p4 <- geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.3)
+p4 <- geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2)
 p5 <- annotate("text", x = c(2, 3), y = 20, label = "A", size = 10)
 
-png("figures/r_nr_tsp.png", 10000/4, 7000/4, "px", res = 600/4)
+png("figures/r_nr_tsp.png", 9000/4, 7000/4, "px", res = 600/4)
 
 p1 + p2 + p3 + p4 + p5 +
   ylab("expected stand richness") + 

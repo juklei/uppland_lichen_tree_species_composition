@@ -23,15 +23,15 @@ model{
     plot_richness[p] ~ dnorm(mu_rich[p], 1/sigma_rich^2)
     # pr_sim[p] ~ dnorm(mu_rich[p], 1/sigma_rich^2)
     mu_rich[p] <- alpha +
-                  beta_dec*dec[p,1] +
-                  beta2_dec*dec[p,1]^2 +
+                  # beta_dec*dec[p,1] +
+                  # beta2_dec*dec[p,1]^2 +
                   # beta_spruce*spruce[p,1] +
                   # beta2_spruce*spruce[p,1]^2 +
                   # beta_pine*pine[p,1] +
                   # beta2_pine*pine[p,1]^2 +
-                  # beta_2tsp*tsp_2[p] +
-                  # beta_3tsp*tsp_3[p] +
-                  # beta_4tsp*tsp_4[p] +
+                  beta_2tsp*tsp_2[p] +
+                  beta_3tsp*tsp_3[p] +
+                  beta_4tsp*tsp_4[p] +
                   beta_dbh*dbh[p,1]
     ## Saturation:
     sat_speed[p] ~ dnorm(mu_sat, 1/sigma_sat^2)
@@ -41,39 +41,38 @@ model{
   
   sigma_rich ~ dgamma(0.001, 0.001)
   alpha ~ dgamma(0.001, 0.001)
-  beta_dec ~ dnorm(0, 0.001)
-  beta2_dec ~ dnorm(0, 0.001)
+  # beta_dec ~ dnorm(0, 0.001)
+  # beta2_dec ~ dnorm(0, 0.001)
   # beta_spruce ~ dnorm(0, 0.001)
   # beta2_spruce ~ dnorm(0, 0.001)
   # beta_pine ~ dnorm(0, 0.001)
   # beta2_pine ~ dnorm(0, 0.001)
-  # beta_2tsp ~ dnorm(0, 0.001)
-  # beta_3tsp ~ dnorm(0, 0.001)
-  # beta_4tsp ~ dnorm(0, 0.001)
-  # beta2_nr_tsp ~ dnorm(0, 0.001)
+  beta_2tsp ~ dnorm(0, 0.001)
+  beta_3tsp ~ dnorm(0, 0.001)
+  beta_4tsp ~ dnorm(0, 0.001)
   beta_dbh ~ dnorm(0, 0.001)
   mu_sat ~ dunif(1, 10)
   sigma_sat ~ dgamma(0.001, 0.001)
 
   ## Predictions:
   
-  # ## For plotting the species accumulation curve:
-  # for(p in 1:nplot){
-  #     for(m in 1:51){
-  #       obs_pred[m,p] ~ dpois((plot_richness[p]*(m-1))/(sat_speed[p] + (m-1)))
-  # }}
+  ## For plotting the species accumulation curve:
+  for(p in 1:nplot){
+      for(m in 1:ntree[p]){
+        obs_pred[m,p] ~ dpois((plot_richness[p]*m)/(sat_speed[p] + m))
+  }}
 
-  # Plotting predictions for tree species percentages:
-  for(m in 1:length(dec_pred)){
-    r_dec[m] <- alpha +
-                beta_dec*dec_pred[m] +
-                beta2_dec*dec_pred[m]^2
-  }
-  ## Maximum:
-  dec_max <- - beta_dec/(2*beta2_dec)
-  ## Non-presence vs. monoculture:
-  diff_100vs0_dec <- beta_dec*(dec_pred[length(dec_pred)] - dec_pred[1]) +
-                     beta2_dec*(dec_pred[length(dec_pred)]^2 - dec_pred[1]^2)
+  # # Plotting predictions for tree species percentages:
+  # for(m in 1:length(dec_pred)){
+  #   r_dec[m] <- alpha +
+  #               beta_dec*dec_pred[m] +
+  #               beta2_dec*dec_pred[m]^2
+  # }
+  # ## Maximum:
+  # dec_max <- - beta_dec/(2*beta2_dec)
+  # ## Non-presence vs. monoculture:
+  # diff_100vs0_dec <- beta_dec*(dec_pred[length(dec_pred)] - dec_pred[1]) +
+  #                    beta2_dec*(dec_pred[length(dec_pred)]^2 - dec_pred[1]^2)
   
   # for(m in 1:length(spruce_pred)){
   #   r_spruce[m] <- alpha +

@@ -63,8 +63,14 @@ data <- list(nrep = dim(sad)[2],
              tsp_4 = ifelse(sad_tree$nr_tsp == 4, 1, 0),
              dbh = scale(sad_tree$dbh))
 
-capture.output(cor(as.data.frame(data[5:11]))) %>% 
-                 write(., "results/cor_lpsac.txt")
+cor_list <- data[5:11]
+cor_list$tsp1 <- ifelse(sad_tree$nr_tsp == 1, 1, 0)
+cor_list$dec_quad <- data$dec^2
+cor_list$pine_quad <- data$pine^2
+cor_list$spruce_quad <- data$spruce^2
+
+capture.output(cor(as.data.frame(cor_list))) %>% 
+  write(., "results/cor_lpsac.txt")
 
 ## Add prediction data:
 data$dec_pred <- seq(min(data$dec), max(data$dec), 0.05)
@@ -214,36 +220,38 @@ dev.off()
 capture.output(raftery.diag(zc), heidel.diag(zc)) %>% 
   write(., "results/diagnostics_lpsac_dec_normal_quad_sat_model.txt")
 
-# ## Produce validation metrics:
-# zj_val <- jags.samples(jm,
-#                        variable.names = c("obs_pred"),
-#                        n.iter = samples,
-#                        thin = n.thin)
-# 
-# pred <- summary(zj_val$obs_pred, quantile, c(.025,.5,.975))$stat
-# x = 0:50
-# 
-# dev.off()
-# 
-# pdf("figures/sim_vs_obs_dec.pdf")
-# 
-# par(mfrow = c(3, 2))
-# 
-# for(i in 1:data$nplot) {
-#   
-#   y=pred[,,i]
-#   plot(x,y[3,], lty="dashed", col="blue", xlab="tree nr", ylab="richness", typ="l")
-#   lines(x,y[2,], col="blue")
-#   lines(x,y[1,], lty="dashed", col="blue")
-#   polygon(c(x,rev(x)), c(y[1,], rev(y[3,])), density=19, col="blue", angle=45)
-#   
-#   ## Real data:
-#   points(rep(which(!is.na(sad[,1,i])), dim(sad)[2]),
-#          na.omit(as.vector(sad[,,i])))
-#   
-# }
-# 
-# dev.off()
+## Produce validation metrics:
+zc_val <- parCodaSamples(cl = cl, model = "lpsac",
+                         variable.names = "obs_pred",
+                         n.iter = samples,
+                         thin = n.thin)
+
+pred <- summary(zc_val)$quantiles
+pred <- cbind(pred,"ntree" = unlist(lapply(data$ntree, function(x) 1:x)))
+plot <- list() ; for(i in 1:data$nplot){plot[[i]] <- rep(i, ntree[i])}
+pred <- as.data.frame(cbind(pred, "plot" = unlist(plot)))
+
+dev.off()
+
+pdf("figures/sim_vs_obs.pdf")
+
+par(mfrow = c(3, 2))
+
+for(i in 1:data$nplot) {
+
+  x = c(0, pred[pred$plot == i, "ntree"])
+  y = rbind(0, pred[pred$plot == i, ])
+  plot(x, y[, 5], lty = "dashed", col = "blue", xlab = "tree nr", ylab = "richness", typ = "l")
+  lines(x, y[, 3], col = "blue")
+  lines(x, y[, 1], lty = "dashed", col = "blue")
+
+  ## Real data:
+  points(rep(which(!is.na(sad[, 1, i])), dim(sad)[2]),
+         na.omit(as.vector(sad[, , i])))
+
+}
+
+dev.off()
 
 ## 6. Produce and export figures -----------------------------------------------
 
