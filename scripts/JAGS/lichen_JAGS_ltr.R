@@ -43,7 +43,7 @@ model{
   beta_aspen ~ dnorm(0, 0.01)
   beta_oak ~ dnorm(0, 0.01)
   beta_alder ~ dnorm(0, 0.01)
-  beta_dbh ~ dnorm(0.25, 0.01)
+  beta_dbh ~ dnorm(0, 0.01)
   
   sigma_plot ~ dgamma(0.001, 0.001)
   tau_plot <- 1/sigma_plot^2

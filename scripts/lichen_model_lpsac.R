@@ -3,7 +3,7 @@
 ## We put an explanatory variable on both the half saturation and the asymptote 
 ##
 ## First edit: 20190605
-## Last edit: 20190904
+## Last edit: 20191014
 ##
 ## Author: Julian Klein
 
@@ -83,6 +83,7 @@ inits <- list(list(plot_richness = sample(1:50, data$nplot, replace = TRUE),
                    sat_speed = sample(1:10, data$nplot, replace = TRUE),
                    sigma_rich = 2,
                    sigma_sat = 2,
+                   mu_rich = 29, 
                    alpha = 29,
                    mu_sat = 5,
                    beta_dec = 1,
@@ -99,6 +100,7 @@ inits <- list(list(plot_richness = sample(1:50, data$nplot, replace = TRUE),
                    sat_speed = sample(1:10, data$nplot, replace = TRUE),
                    sigma_rich = 5,
                    sigma_sat = 1,
+                   mu_rich = 40,
                    alpha = 40,
                    mu_sat = 7,
                    beta_dec = -1,
@@ -115,6 +117,7 @@ inits <- list(list(plot_richness = sample(1:50, data$nplot, replace = TRUE),
                    sat_speed = sample(1:10, data$nplot, replace = TRUE),
                    sigma_rich = 1,
                    sigma_sat = 1,
+                   mu_rich = 15,
                    alpha = 15,
                    mu_sat = 1,
                    beta_dec = 0.1,
@@ -167,6 +170,7 @@ zc <- parCodaSamples(cl = cl, model = "lpsac",
                      variable.names = c("sigma_sat",
                                         "sigma_rich",
                                         "alpha",
+                                        "mu_rich",
                                         "mu_sat",
                                         "beta_dec",
                                         "beta2_dec",
@@ -198,7 +202,7 @@ end-start
 
 ## Export parameter estimates:
 capture.output(summary(zc), HPDinterval(zc, prob = 0.95)) %>% 
-  write(., "results/parameters_lpsac_dec_normal_quad_sat_model.txt")
+  write(., "results/parameters_lpsac_plot_richness.txt")
 
 # ## Extract probability that difference between nr_tsp is bigger than 0:
 # ANOVA_prob <- data.frame("cat" = colnames(zc[[1]])[6:11],
@@ -213,50 +217,51 @@ capture.output(summary(zc), HPDinterval(zc, prob = 0.95)) %>%
 
 ## 5. Validate the model and export validation data and figures ----------------
 
-pdf("figures/plot_zc_lpsac_dec_normal_quad_sat_model.pdf")
+pdf("figures/plot_zc_lpsac_plot_richness.pdf")
 plot(zc)
 dev.off()
 
 capture.output(raftery.diag(zc), heidel.diag(zc)) %>% 
-  write(., "results/diagnostics_lpsac_dec_normal_quad_sat_model.txt")
+  write(., "results/diagnostics_lpsac_plot_richness.txt")
 
-## Produce validation metrics:
-zc_val <- parCodaSamples(cl = cl, model = "lpsac",
-                         variable.names = "obs_pred",
-                         n.iter = samples,
-                         thin = n.thin)
-
-pred <- summary(zc_val)$quantiles
-pred <- cbind(pred,"ntree" = unlist(lapply(data$ntree, function(x) 1:x)))
-plot <- list() ; for(i in 1:data$nplot){plot[[i]] <- rep(i, ntree[i])}
-pred <- as.data.frame(cbind(pred, "plot" = unlist(plot)))
-
-dev.off()
-
-pdf("figures/sim_vs_obs.pdf")
-
-par(mfrow = c(3, 2))
-
-for(i in 1:data$nplot) {
-
-  x = c(0, pred[pred$plot == i, "ntree"])
-  y = rbind(0, pred[pred$plot == i, ])
-  plot(x, y[, 5], lty = "dashed", col = "blue", xlab = "tree nr", ylab = "richness", typ = "l")
-  lines(x, y[, 3], col = "blue")
-  lines(x, y[, 1], lty = "dashed", col = "blue")
-
-  ## Real data:
-  points(rep(which(!is.na(sad[, 1, i])), dim(sad)[2]),
-         na.omit(as.vector(sad[, , i])))
-
-}
-
-dev.off()
+# ## Produce validation metrics:
+# zc_val <- parCodaSamples(cl = cl, model = "lpsac",
+#                          variable.names = "obs_pred",
+#                          n.iter = samples,
+#                          thin = n.thin)
+# 
+# pred <- summary(zc_val)$quantiles
+# pred <- cbind(pred,"ntree" = unlist(lapply(data$ntree, function(x) 1:x)))
+# plot <- list() ; for(i in 1:data$nplot){plot[[i]] <- rep(i, ntree[i])}
+# pred <- as.data.frame(cbind(pred, "plot" = unlist(plot)))
+# 
+# dev.off()
+# 
+# pdf("figures/sim_vs_obs.pdf")
+# 
+# par(mfrow = c(3, 2))
+# 
+# for(i in 1:data$nplot) {
+# 
+#   x = c(0, pred[pred$plot == i, "ntree"])
+#   y = rbind(0, pred[pred$plot == i, ])
+#   plot(x, y[, 5], lty = "dashed", col = "blue", xlab = "tree nr", ylab = "richness", typ = "l")
+#   lines(x, y[, 3], col = "blue")
+#   lines(x, y[, 1], lty = "dashed", col = "blue")
+# 
+#   ## Real data:
+#   points(rep(which(!is.na(sad[, 1, i])), dim(sad)[2]),
+#          na.omit(as.vector(sad[, , i])))
+# 
+# }
+# 
+# dev.off()
 
 ## 6. Produce and export figures -----------------------------------------------
 
 zj_pred <- parCodaSamples(cl = cl, model = "lpsac",
-                          variable.names = c("r_dec", 
+                          variable.names = c("plot_richness",
+                                             "r_dec", 
                                              "r_spruce", 
                                              "r_pine", 
                                              "dec_max", 
@@ -269,11 +274,11 @@ zj_pred <- parCodaSamples(cl = cl, model = "lpsac",
                           n.iter = 10000, 
                           thin = 10)
 
-export_srd <- list("r_dec" = zj_pred[, colnames(zj_pred[[1]]) != "dec_max"],
-                   "dec_pred" = backscale(data$dec_pred, data$dec),
-                   "dec_max" = backscale(summary(zj_pred[, "dec_max"])$quantiles, data$dec),
-                   "dec_max_all" = backscale(unlist(zj_pred[, "dec_max"]), data$dec))
-save(export_srd, file = "clean/sac_pred_r_dec.rda")
+# export_srd <- list("r_dec" = zj_pred[, colnames(zj_pred[[1]]) != "dec_max"],
+#                    "dec_pred" = backscale(data$dec_pred, data$dec),
+#                    "dec_max" = backscale(summary(zj_pred[, "dec_max"])$quantiles, data$dec),
+#                    "dec_max_all" = backscale(unlist(zj_pred[, "dec_max"]), data$dec))
+# save(export_srd, file = "clean/sac_pred_r_dec.rda")
 
 # export_srs <- list("r_spruce" = zj_pred[, colnames(zj_pred[[1]]) != "spruce_max"],
 #                    "spruce_pred" = backscale(data$spruce_pred, data$spruce),
@@ -289,6 +294,12 @@ save(export_srd, file = "clean/sac_pred_r_dec.rda")
 
 # export_srntsp <- zj_pred
 # save(export_srntsp, file = "clean/sac_pred_r_nr_tsp.rda")
+
+export_plot_richness <- zj_pred
+export_plot_richness$dec <- sad_tree$dec
+export_plot_richness$spruce <- sad_tree$spruce
+export_plot_richness$pine <- sad_tree$pine
+save(export_plot_richness, file = "clean/sac_plot_richness.rda")
 
 stopCluster(cl)
 
