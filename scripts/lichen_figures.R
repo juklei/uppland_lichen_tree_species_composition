@@ -1,7 +1,7 @@
 ## Make figures for ltr and lpsac
 ##
 ## First edit: 20190612
-## Last edit: 20190612
+## Last edit: 20200505
 ##
 ## Author: Julian Klein
 
@@ -10,6 +10,7 @@
 rm(list = ls())
 
 require("ggplot2")
+require("ggtern")
 require("ggpubr")
 require("cowplot")
 require("rjags")
@@ -36,6 +37,7 @@ load("clean/sac_pred_r_dec.rda")
 load("clean/sac_pred_r_spruce.rda")
 load("clean/sac_pred_r_pine.rda")
 load("clean/sac_pred_r_nr_tsp.rda")
+load("clean/sac_plot_richness.rda")
 
 ## 4. Make graphs for ltr predictions ------------------------------------------
 
@@ -67,7 +69,7 @@ g4 <- annotate("text",
                label = c("A", "A,B,C", "B", "B", "C"), 
                size = 10)
 
-png("figures/ltr_tsp.png", 10000/4, 7000/4, "px", res = 600/4)
+png("figures/figure_1.png", 10000, 7000, "px", res = 600)
 
 g1 + g2 + g3 + g4 + theme_classic(40) + ylab("lichen richness per tree") + 
   xlab("")
@@ -94,10 +96,10 @@ p3 <- geom_point(size = 2)
 p4 <- geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2)
 p5 <- annotate("text", x = c(2, 3), y = 20, label = "A", size = 10)
 
-png("figures/r_nr_tsp.png", 9000/4, 7000/4, "px", res = 600/4)
+png("figures/figure_2.png", 9000, 7000, "px", res = 600)
 
 p1 + p2 + p3 + p4 + p5 +
-  ylab("expected stand richness") + 
+  ylab("expected stand lichen richness") + 
   xlab("number of tree species") +
   theme_classic(40) 
 
@@ -148,28 +150,72 @@ q1 <- ggplot(d_all,
 q2 <- geom_line(size = 2)
 q3 <- geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .2, colour = NA)
 Q <- q1 + q2 + q3 +
-     ylab("expected stand richness") + 
+     ylab("expected stand lichen richness") + 
      xlab("percentage of trees") +
      s1 + s2 +
      theme_classic(40) +                  
-     theme(legend.position = c(0.29, 0.10), 
+     theme(legend.position = c(0.4, 0.10), 
            legend.title = element_blank(),
            legend.key.size = unit(3, 'lines'),
            legend.direction = "horizontal")
 
 ## Maxima:
-p1 <- ggplot(data = maxima_all, 
+p1 <- ggplot(data = maxima, 
              aes(x = value*100, 
                  color = tree_species, 
                  fill = tree_species,
                  lty = tree_species))
 p2 <- geom_density(alpha = .2)
 P <- p1 + p2 + xlim(0, 100) + s1 + s2 + theme0()
-  
-png("figures/r_all_quad.png", 10000/4, 9000/4, "px", res = 600/4)
 
-plot_grid(P, Q, align = "v", nrow = 2, rel_heights = c(1/5, 4/5))
+PQ <- plot_grid(P, Q, align = "v", nrow = 2, rel_heights = c(1/5, 4/5))
 
+## Ternary plot:
+
+y_all <- rbind(as.matrix(export_plot_richness[[1]]),
+               as.matrix(export_plot_richness[[2]]),
+               as.matrix(export_plot_richness[[3]]))
+
+d_all <- data.frame("r" = apply(y_all, 2, mean),
+                    "sd" = apply(y_all, 2, sd),
+                    "dec" = export_plot_richness$dec,
+                    "spruce" = export_plot_richness$spruce,
+                    "pine" = export_plot_richness$pine)
+
+R <- ggtern(data = d_all, aes(x = dec, y = spruce, z = pine)) +
+  # stat_density_tern(geom = 'polygon',
+  #                   n         = 500,
+  #                   aes(colour  = ..level.., alpha = ..level..)) +
+  # geom_interpolate_tern(aes(value = richness, colour = ..level..),
+  #                       bins = 50,
+  #                       alpha = 1) +
+  geom_mask() +
+  geom_point(aes(colour = r), size = 10) +
+  scale_colour_gradient(low = "yellow", high = "blue") + 
+  # scale_fill_gradient(low = "white", high = "yellow")  +
+  # guides(colour = "", fill = "none", alpha = "none") +
+  xlab("") + ylab("") + zlab("") +
+  labs(colour = "expected stand lichen richness", size = 10) +
+  theme_classic(40) + 
+  theme(legend.position = c(0.5, -0.1), 
+        legend.key.size = unit(3, 'lines'),
+        legend.direction = "horizontal") +
+  Tarrowlab("% spruce") + Larrowlab("% deciduous") + Rarrowlab("% pine") +
+  theme_showarrows()
+
+## Annotate and export combined plots:
+
+PQ <- annotate_figure(PQ, 
+                      fig.lab = "a)",
+                      fig.lab.pos = "top.left", 
+                      fig.lab.size = 35)
+R <- annotate_figure(R,
+                     fig.lab = "b)", 
+                     fig.lab.pos = "top.left",
+                     fig.lab.size = 35)
+
+png("figures/figure_3.png", 16000, 8000, "px", res = 600)
+plot_grid(PQ, R, align = "h", axis = "t", ncol = 2, rel_widths = c(0.52, 0.48))
 dev.off()
 
 ## -------------------------------END-------------------------------------------

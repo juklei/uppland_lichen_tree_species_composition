@@ -3,8 +3,7 @@
 .RData
 .Ruserdata
 /data
-/clean
-/figures
 /results
+/figures
 /temp
-
+/clean
