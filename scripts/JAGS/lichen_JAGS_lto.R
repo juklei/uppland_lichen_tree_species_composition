@@ -85,7 +85,24 @@ model{
   aspen_r <- sum(aspen_out[])
   oak_r <- sum(oak_out[])
   alder_r <- sum(alder_out[])
-  tree_r <- sum(tree_out)
+  tree_r <- sum(tree_out[])
+  
+  ## Calculate differences:
+  birch_aspen <- birch_r - aspen_r
+  oak_aspen <- oak_r - aspen_r
+  alder_aspen <- alder_r - aspen_r
+  pine_aspen <- pine_r - aspen_r
+  spruce_aspen <- spruce_r - aspen_r
+  oak_birch <- oak_r - birch_r
+  alder_birch <- alder_r - birch_r
+  pine_birch <- pine_r - birch_r
+  spruce_birch <- spruce_r - birch_r
+  alder_oak <- alder_r - oak_r
+  pine_oak <- pine_r - oak_r
+  spruce_oak <- spruce_r - oak_r
+  pine_alder <- pine_r - alder_r
+  spruce_alder <- spruce_r - alder_r
+  spruce_pine <- spruce_r - pine_r
    
 }
 

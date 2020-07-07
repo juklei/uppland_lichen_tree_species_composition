@@ -52,7 +52,7 @@ lto <- lto[!is.na(lto$DBH), ]
 T1 <- table(lto[, c("species", "observed")])
 
 ## Exclude species which where seen > x and not seen > x times:
-red_names <- names(which(T1[, "1"] > 25 & T1[, "0"] > 25))
+red_names <- names(which(T1[, "1"] > 50 & T1[, "0"] > 50))
 lto <- droplevels(lto[lto$species %in% red_names, ])
 
 ## Create arrays:
@@ -135,7 +135,7 @@ jm <- parJagsModel(cl = cl,
                    inits = inits,
                    n.chains = 3) 
 
-parUpdate(cl = cl, object = "lto", n.iter = 50000)
+parUpdate(cl = cl, object = "lto", n.iter = 5000)
 
 samples <- 500
 n.thin <- 1
@@ -168,9 +168,9 @@ dev.off()
 capture.output(raftery.diag(zc_1), heidel.diag(zc_1)) %>% 
   write(., "results/diagnostics_lto.txt")
 
-## 6. Produce data to export for figures ---------------------------------------
+# 6. Extract predictions from posterior ----------------------------------------
 
-## For the model without the quadratic term:
+## Species specific differences in occuppancy per tree identity:
 
 zc_2 <- parCodaSamples(cl = cl, model = "lto",
                        variable.names = c("birch_out", "birch_r", 
@@ -186,16 +186,39 @@ zc_2 <- parCodaSamples(cl = cl, model = "lto",
 ## Combine MCMC chains:
 zc_2 <- combine.mcmc(zc_2)
 
-## Extract slopes and species names:
+## Extract P(occupancy) and species names:
 out <- as.data.frame(summary(zc_2)$quantiles[, c("50%", "2.5%", "97.5%")])
 out <- round(out, 2)
 out$value <- paste0(out$`50%`, "(", out$`2.5%`, "-", out$`97.5%`, ")")
 out$tsp <- unlist(tstrsplit(rownames(out), split = "_", keep = 1))
 out$identity <- c(levels(lto$species), "Richness (sum of P(occupied)")
 
-## Export the data set for figures:
+## Export the table:
 write.csv(dcast(out, identity ~ tsp, value.var = "value"), 
           "results/lto_tsp.csv", 
           row.names = FALSE)
+
+## DIfferences in Species richness per tree species:
+
+zc_3 <- parCodaSamples(cl = cl, model = "lto",
+                       variable.names = c("birch_aspen", "oak_aspen", 
+                                          "alder_aspen", "pine_aspen",
+                                          "spruce_aspen", "oak_birch", 
+                                          "alder_birch", "pine_birch",
+                                          "spruce_birch", "alder_oak",
+                                          "pine_oak", "spruce_oak",
+                                          "pine_alder", "spruce_alder",
+                                          "spruce_pine"),
+                       n.iter = samples, 
+                       thin = n.thin)
+
+## Combine MCMC chains:
+zc_3 <- combine.mcmc(zc_3)
+
+## Extract 95% CIs and P(diff >= 0) of the difference:
+ANOVA <- as.data.frame(summary(zc_3)$quantiles[, c("50%", "2.5%", "97.5%")])
+ANOVA$ecdf <- apply(zc_3, 2, function(x) 1-ecdf(x)(0)) 
+
+write.csv(ANOVA, "results/ANOVA_results_lto.csv")
 
 ## -------------------------------END-------------------------------------------
