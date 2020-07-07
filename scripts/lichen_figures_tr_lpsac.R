@@ -203,14 +203,16 @@ R <- ggtern(data = d_all, aes(x = dec, y = spruce, z = pine)) +
   Tarrowlab("% spruce") + Larrowlab("% deciduous") + Rarrowlab("% pine") +
   theme_showarrows()
 
+R
+
 ## Annotate and export combined plots:
 
 PQ <- annotate_figure(PQ, 
-                      fig.lab = "a)",
+                      fig.lab = " (a)",
                       fig.lab.pos = "top.left", 
                       fig.lab.size = 35)
 R <- annotate_figure(R,
-                     fig.lab = "b)", 
+                     fig.lab = " (b)", 
                      fig.lab.pos = "top.left",
                      fig.lab.size = 35)
 
