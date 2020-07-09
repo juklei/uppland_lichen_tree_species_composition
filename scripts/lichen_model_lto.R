@@ -48,12 +48,14 @@ table(lto$species)
 ## Exclude NA in dbh:
 lto <- lto[!is.na(lto$DBH), ]
 
-## Create table with nr.obswrved/non-observed per species:
-T1 <- table(lto[, c("species", "observed")])
+# ## Create table with nr.obswrved/non-observed per species:
+# T1 <- table(lto[, c("species", "observed")])
+# 
+# ## Exclude species which where seen > x and not seen > x times:
+# red_names <- names(which(T1[, "1"] > 50 & T1[, "0"] > 50))
+# lto <- droplevels(lto[lto$species %in% red_names, ])
 
-## Exclude species which where seen > x and not seen > x times:
-red_names <- names(which(T1[, "1"] > 50 & T1[, "0"] > 50))
-lto <- droplevels(lto[lto$species %in% red_names, ])
+lto <- droplevels(lto)
 
 ## Create arrays:
 
@@ -88,9 +90,6 @@ data <- list(nplot = length(unique(lto$Plot.no.)),
              alder = matrix(ifelse(tsp == "Ag", 1, 0), nrow(tsp)),
              dbh = scale(dbh))
 
-# ## Add prediction data:
-# data$td_pred <- seq(min(data$td), max(data$td), by = 0.05)
-
 str(data)
 
 ## Prepare inits:
@@ -103,22 +102,22 @@ inits <-list(list(mu_alpha = 0, sd_alpha = 10,
                   mu_b_alder = 0, sd_b_alder = 1,
                   mu_b_dbh = 0, sd_b_dbh = 1,
                   u_sp = 1),
-             list(mu_alpha = -1, sd_alpha = 0.5,
-                  mu_b_pine = -3, sd_b_pine = 4,
-                  mu_b_spruce = -3, sd_b_spruce = 4,
-                  mu_b_aspen = -3, sd_b_aspen = 4,
-                  mu_b_oak = -3, sd_b_oak = 4,
-                  mu_b_alder = -3, sd_b_alder = 4,
-                  mu_b_dbh = -3, sd_b_dbh = 4,
-                  u_sp = 4),
-             list(mu_alpha = 1, sd_alpha = 4,
-                  mu_b_pine = 3, sd_b_pine = 0.1,
-                  mu_b_spruce = 3, sd_b_spruce = 0.1,
-                  mu_b_aspen = 3, sd_b_aspen = 0.1,
-                  mu_b_oak = 3, sd_b_oak = 0.1,
-                  mu_b_alder = 3, sd_b_alder = 0.1,
-                  mu_b_dbh = 3, sd_b_dbh = 0.1,
-                  u_sp = 0.1))
+             list(mu_alpha = -8, sd_alpha = 2.5,
+                  mu_b_pine = -3, sd_b_pine = 1,
+                  mu_b_spruce = -1, sd_b_spruce = 2,
+                  mu_b_aspen = -3, sd_b_aspen = 3,
+                  mu_b_oak = -2, sd_b_oak = 1.5,
+                  mu_b_alder = -1, sd_b_alder = 0.5,
+                  mu_b_dbh = 0, sd_b_dbh = 0.05,
+                  u_sp = 0.6),
+             list(mu_alpha = -5, sd_alpha = 4,
+                  mu_b_pine = 3, sd_b_pine = 3,
+                  mu_b_spruce = 1.5, sd_b_spruce = 4,
+                  mu_b_aspen = 3, sd_b_aspen = 7,
+                  mu_b_oak = 2, sd_b_oak = 4.5,
+                  mu_b_alder = 1.5, sd_b_alder = 2.5,
+                  mu_b_dbh = 0.15, sd_b_dbh = 0.25,
+                  u_sp = 1.5))
 
 model <- "scripts/JAGS/lichen_JAGS_lto.R"
 
@@ -131,14 +130,14 @@ jm <- parJagsModel(cl = cl,
                    name = "lto",
                    file = model,
                    data = data,
-                   n.adapt = 500, 
+                   n.adapt = 5000, 
                    inits = inits,
                    n.chains = 3) 
 
-parUpdate(cl = cl, object = "lto", n.iter = 5000)
+parUpdate(cl = cl, object = "lto", n.iter = 10000)
 
-samples <- 500
-n.thin <- 1
+samples <- 10000
+n.thin <- 10
 
 zc_1 <- parCodaSamples(cl = cl, model = "lto",
                        variable.names = c("mu_alpha", "sd_alpha",
