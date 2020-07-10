@@ -1,9 +1,9 @@
 ## model lichen richness per stand with species accumulation curves
 ## The species accumulation curve is a michaelis-menten saturation curve
-## We put an explanatory variable on both the half saturation and the asymptote 
+## We put an explanatory variables on both the half saturation and the asymptote 
 ##
 ## First edit: 20190605
-## Last edit: 20191014
+## Last edit: 20200710
 ##
 ## Author: Julian Klein
 
@@ -13,6 +13,7 @@ rm(list = ls())
 
 library(boot)
 library(rjags)
+library(runjags)
 library(coda)
 library(magrittr)
 library(reshape2)
@@ -45,7 +46,7 @@ load("clean/sad_tree_part.rda")
 str(sad)
 str(sad_tree)
 
-## 4. The model ----------------------------------------------------------------
+## 4. Prepare data and inits ---------------------------------------------------
 
 ## Calculate the number of trees by plot:
 ntree <- apply(sad, 3, function(x) sum(!is.na(x[,2])))
@@ -81,226 +82,302 @@ str(data)
 
 inits <- list(list(plot_richness = sample(1:50, data$nplot, replace = TRUE),
                    sat_speed = sample(1:10, data$nplot, replace = TRUE),
+                   sigma_rich = 2, 
+                   r_alpha = 29, r_beta_dbh = 0.2,
+                   r_beta_dec = 1, r_beta2_dec = 1,
+                   r_beta_spruce = 1, r_beta2_spruce = 1,
+                   r_beta_pine = 1, r_beta2_pine = 1,
+                   r_beta_2tsp = 0.1, r_beta_3tsp = 0.1, r_beta_4tsp = 0.1,
+                   sigma_sat = 2, 
+                   s_alpha = 0, s_beta_dbh = 0.2,
+                   s_beta_dec = 1, s_beta2_dec = 1,
+                   s_beta_spruce = 1, s_beta2_spruce = 1,
+                   s_beta_pine = 1, s_beta2_pine = 1, 
+                   s_beta_2tsp = 0, s_beta_3tsp = 0, s_beta_4tsp = 0),
+              list(plot_richness = sample(1:50, data$nplot, replace = TRUE),
+                   sat_speed = sample(1:10, data$nplot, replace = TRUE),
                    sigma_rich = 2,
+                   r_alpha = 30, r_beta_dbh = -2,
+                   r_beta_dec = 0, r_beta2_dec = -4,
+                   r_beta_spruce = 0, r_beta2_spruce = -4,
+                   r_beta_pine = 0, r_beta2_pine = -4,
+                   r_beta_2tsp = 0.1, r_beta_3tsp = 0.1, r_beta_4tsp = 0.1,
                    sigma_sat = 2,
-                   mu_rich = 29, 
-                   alpha = 29,
-                   mu_sat = 5,
-                   beta_dec = 1,
-                   beta2_dec = 1,
-                   beta_spruce = 0.5,
-                   beta2_spruce = 0.5,
-                   beta_pine = 1,
-                   beta2_pine = 1,
-                   beta_dbh = 0.2,
-                   beta_2tsp = 0.1,
-                   beta_3tsp = 0.1,
-                   beta_4tsp = 0.1),
+                   s_alpha = 0.8, s_beta_dbh = -0.2,
+                   s_beta_dec = 0.1, s_beta2_dec = -0.2,
+                   s_beta_spruce = 0.1, s_beta2_spruce = -0.2,
+                   s_beta_pine = 1, s_beta2_pine = -0.2, 
+                   s_beta_2tsp = -1, s_beta_3tsp = -1, s_beta_4tsp = -1),
               list(plot_richness = sample(1:50, data$nplot, replace = TRUE),
                    sat_speed = sample(1:10, data$nplot, replace = TRUE),
-                   sigma_rich = 5,
-                   sigma_sat = 1,
-                   mu_rich = 40,
-                   alpha = 40,
-                   mu_sat = 7,
-                   beta_dec = -1,
-                   beta2_dec = -1,
-                   beta_spruce = -0.5,
-                   beta2_spruce = -0.5,
-                   beta_pine = -1,
-                   beta2_pine = -1,
-                   beta_dbh = -0.2,
-                   beta_2tsp = -0.1,
-                   beta_3tsp = -0.1,
-                   beta_4tsp = -0.1),
-              list(plot_richness = sample(1:50, data$nplot, replace = TRUE),
-                   sat_speed = sample(1:10, data$nplot, replace = TRUE),
-                   sigma_rich = 1,
-                   sigma_sat = 1,
-                   mu_rich = 15,
-                   alpha = 15,
-                   mu_sat = 1,
-                   beta_dec = 0.1,
-                   beta2_dec = 0.1,
-                   beta_spruce = 0.1,
-                   beta2_spruce = 0.1,
-                   beta_pine = 0.1,
-                   beta2_pine = 0.1,
-                   beta_dbh = 0,
-                   beta_2tsp = 0,
-                   beta_3tsp = 0,
-                   beta_4tsp = 0))
+                   sigma_rich = 2, 
+                   r_alpha = 40, r_beta_dbh = 5,
+                   r_beta_dec = 10, r_beta2_dec = 1,
+                   r_beta_spruce = 10, r_beta2_spruce = 1,
+                   r_beta_pine = 10, r_beta2_pine = 1,
+                   r_beta_2tsp = 0.1, r_beta_3tsp = 0.1, r_beta_4tsp = 0.1,
+                   sigma_sat = 2,
+                   s_alpha = 1.15, s_beta_dbh = 0.05,
+                   s_beta_dec = 0.5, s_beta2_dec = 0.05,
+                   s_beta_spruce = 0.5, s_beta2_spruce = 0,
+                   s_beta_pine = 0.5, s_beta2_pine = 0, 
+                   s_beta_2tsp = 1, s_beta_3tsp = 1, s_beta_4tsp = 1))
 
-model <- "scripts/JAGS/lichen_JAGS_lpsac.R"
+## Load the models:
+m.raw <- "scripts/JAGS/lichen_JAGS_lpsac_raw.R"
+m.dec <- "scripts/JAGS/lichen_JAGS_lpsac_dec.R"
+m.spruce <- "scripts/JAGS/lichen_JAGS_lpsac_spruce.R"
+m.pine <- "scripts/JAGS/lichen_JAGS_lpsac_pine.R"
+m.tsp <- "scripts/JAGS/lichen_JAGS_lpsac_tsp.R"
 
 start <- Sys.time()
 
-samples <- 10000; n.thin <- 10
+n.adapt <- 1000; n.iter <- 1000; samples <- 1000; n.thin <- 2
 
-## Model selection with one chain:
-
-# jm <- jags.model(model, data, n.adapt = 2500, inits = inits[[1]], n.chains = 1)
-# update(jm, n.iter = 2500)
-# zj_modsel <- jags.samples(jm,
-#                           variable.names = c("plot_richness", "pr_sim"),
-#                           n.iter = samples,
-#                           thin = n.thin)
-# 
-# PPL_quad_dec = sum((summary(zj_modsel$plot_richness, mean)$stat -
-#                       summary(zj_modsel$pr_sim, mean)$stat)^2) +
-#                sum((summary(zj_modsel$pr_sim, sd)$stat)^2)
-# PPL_lin_dec = sum((summary(zj_modsel$plot_richness, mean)$stat - 
-#                       summary(zj_modsel$pr_sim, mean)$stat)^2) + 
-#               sum((summary(zj_modsel$pr_sim, sd)$stat)^2)
+## 5. Run m.raw ----------------------------------------------------------------
 
 ## Parallel computing:
 cl <- makePSOCKcluster(3) ## On 3 cores
 
+## Load model:
 parJagsModel(cl = cl, 
              name = "lpsac", 
-             file = model,
+             file = m.raw,
              data = data,
-             n.adapt = 5000, 
-             inits = inits, 
-             n.chains = 3) 
+             inits = inits,
+             n.chains = 3,
+             n.adapt = n.adapt) 
 
-parUpdate(cl = cl, object = "lpsac", n.iter = 5000)
+## Update:
+parUpdate(cl = cl, object = "lpsac", n.iter = n.iter)
 
+## Extract samples from estimated parameters:
 zc <- parCodaSamples(cl = cl, model = "lpsac",
-                     variable.names = c("sigma_sat",
-                                        "sigma_rich",
-                                        "alpha",
-                                        "mu_rich",
-                                        "mu_sat",
-                                        "beta_dec",
-                                        "beta2_dec",
-                                        "dec_max",
-                                        "diff_100vs0_dec",
-                                        "beta_spruce",
-                                        "beta2_spruce",
-                                        "spruce_max",
-                                        "diff_100vs0_spruce",
-                                        "beta_pine",
-                                        "beta2_pine",
-                                        "pine_max",
-                                        "diff_100vs0_pine",
-                                        "beta_dbh",
-                                        "beta_2tsp",
-                                        "beta_3tsp",
-                                        "beta_4tsp",
-                                        "diff_21",
-                                        "diff_31",
-                                        "diff_41",
-                                        "diff_32",
-                                        "diff_42",
-                                        "diff_43"),
+                     variable.names = c("mu_rich", "sigma_rich", 
+                                        "mu_sat", "sigma_sat"),
                      n.iter = samples, 
                      thin = n.thin)
 
-end <- Sys.time()
-end-start
-
 ## Export parameter estimates:
 capture.output(summary(zc), HPDinterval(zc, prob = 0.95)) %>% 
-  write(., "results/parameters_lpsac_plot_richness.txt")
+  write(., "results/parameters_lpsac_raw.txt")
 
-# ## Extract probability that difference between nr_tsp is bigger than 0:
-# ANOVA_prob <- data.frame("cat" = colnames(zc[[1]])[6:11],
-#                          "prob" = rep(NA, 6))
-# for(i in 1:6){
-#   ANOVA_prob$prob[i] <- 1-ecdf(unlist(zc[, paste(ANOVA_prob$cat[i])]))(0)
-# }
-# 
-# ## Print and export:
-# capture.output(print("P(diff >= 0)"), as.matrix(ANOVA_prob)) %>%
-#   write(., "results/ANOVA_results_lpsac.txt")
+## Test model convergence and mixing:
+pdf("figures/lpsac_raw.pdf")
+plot(zc); gelman.plot(zc) 
+dev.off()
 
-## 5. Validate the model and export validation data and figures ----------------
+## And with a table:
+capture.output(raftery.diag(zc), heidel.diag(zc)) %>% 
+  write(., "results/diagnostics_lpsac_raw.txt")
 
-pdf("figures/plot_zc_lpsac_plot_richness.pdf")
+## Produce SAC from fitted model and compare with raw data:
+
+zc_val <- parCodaSamples(cl = cl, model = "lpsac",
+                         variable.names = "obs_pred",
+                         n.iter = samples,
+                         thin = n.thin)
+
+pred <- summary(zc_val)$quantiles
+pred <- cbind(pred,"ntree" = unlist(lapply(data$ntree, function(x) 1:x)))
+plot <- list() ; for(i in 1:data$nplot){plot[[i]] <- rep(i, ntree[i])}
+pred <- as.data.frame(cbind(pred, "plot" = unlist(plot)))
+
+dev.off()
+
+pdf("figures/sim_vs_obs.pdf")
+par(mfrow = c(3, 2))
+for(i in 1:data$nplot) {
+  x = c(0, pred[pred$plot == i, "ntree"])
+  y = rbind(0, pred[pred$plot == i, ])
+  plot(x, y[, 5], xlab = "tree nr", ylab = "richness",
+       lty = "dashed", col = "blue", typ = "l")
+  lines(x, y[, 3], col = "blue")
+  lines(x, y[, 1], lty = "dashed", col = "blue")
+  ## Real data:
+  points(rep(which(!is.na(sad[, 1, i])), dim(sad)[2]),
+         na.omit(as.vector(sad[, , i])))
+}
+dev.off()
+
+## Export estimated plot_richness and sat_speed for ternary plots:
+
+zj_pred <- parCodaSamples(cl = cl, model = "lpsac",
+                          variable.names = c("plot_richness", "sat_speed"),
+                          n.iter = samples, 
+                          thin = n.thin)
+
+plot_estimates <- zj_pred
+plot_estimates$dec <- sad_tree$dec
+plot_estimates$spruce <- sad_tree$spruce
+plot_estimates$pine <- sad_tree$pine
+save(plot_estimates, file = "clean/plot_estimates.rda")
+
+stopCluster(cl)
+
+## 6. Run m.dec ----------------------------------------------------------------
+
+cl <- makePSOCKcluster(3) 
+parJagsModel(cl, "lpsac", m.dec, data, inits, 3, n.adapt)
+parUpdate(cl = cl, object = "lpsac", n.iter = n.iter)
+
+zc <- parCodaSamples(cl = cl, model = "lpsac",
+                     variable.names = c("sigma_rich", "r_alpha", "r_beta_dbh",
+                                        "r_beta_dec", "r_beta2_dec",
+                                        "sigma_sat", "s_alpha", "s_beta_dbh",
+                                        "s_beta_dec", "s_beta2_dec"),
+                     n.iter = samples, thin = n.thin)
+
+capture.output(summary(zc), HPDinterval(zc, prob = 0.95)) %>% 
+  write(., "results/parameters_lpsac_dec.txt")
+
+pdf("figures/lpsac_dec.pdf")
 plot(zc)
 dev.off()
 
 capture.output(raftery.diag(zc), heidel.diag(zc)) %>% 
-  write(., "results/diagnostics_lpsac_plot_richness.txt")
-
-# ## Produce validation metrics:
-# zc_val <- parCodaSamples(cl = cl, model = "lpsac",
-#                          variable.names = "obs_pred",
-#                          n.iter = samples,
-#                          thin = n.thin)
-# 
-# pred <- summary(zc_val)$quantiles
-# pred <- cbind(pred,"ntree" = unlist(lapply(data$ntree, function(x) 1:x)))
-# plot <- list() ; for(i in 1:data$nplot){plot[[i]] <- rep(i, ntree[i])}
-# pred <- as.data.frame(cbind(pred, "plot" = unlist(plot)))
-# 
-# dev.off()
-# 
-# pdf("figures/sim_vs_obs.pdf")
-# 
-# par(mfrow = c(3, 2))
-# 
-# for(i in 1:data$nplot) {
-# 
-#   x = c(0, pred[pred$plot == i, "ntree"])
-#   y = rbind(0, pred[pred$plot == i, ])
-#   plot(x, y[, 5], lty = "dashed", col = "blue", xlab = "tree nr", ylab = "richness", typ = "l")
-#   lines(x, y[, 3], col = "blue")
-#   lines(x, y[, 1], lty = "dashed", col = "blue")
-# 
-#   ## Real data:
-#   points(rep(which(!is.na(sad[, 1, i])), dim(sad)[2]),
-#          na.omit(as.vector(sad[, , i])))
-# 
-# }
-# 
-# dev.off()
-
-## 6. Produce and export figures -----------------------------------------------
+  write(., "results/diagnostics_lpsac_dec.txt")
 
 zj_pred <- parCodaSamples(cl = cl, model = "lpsac",
-                          variable.names = c("plot_richness",
-                                             "r_dec", 
-                                             "r_spruce", 
-                                             "r_pine", 
-                                             "dec_max", 
-                                             "spruce_max", 
-                                             "pine_max", 
-                                             "r_1tsp",
-                                             "r_2tsp",
-                                             "r_3tsp",
-                                             "r_4tsp"),
-                          n.iter = 10000, 
-                          thin = 10)
+                          variable.names = c("r_dec", "r_dec_max",
+                                             "s_dec", "s_dec_max"),
+                          n.iter = samples, thin = n.thin)
 
-# export_srd <- list("r_dec" = zj_pred[, colnames(zj_pred[[1]]) != "dec_max"],
-#                    "dec_pred" = backscale(data$dec_pred, data$dec),
-#                    "dec_max" = backscale(summary(zj_pred[, "dec_max"])$quantiles, data$dec),
-#                    "dec_max_all" = backscale(unlist(zj_pred[, "dec_max"]), data$dec))
-# save(export_srd, file = "clean/sac_pred_r_dec.rda")
-
-# export_srs <- list("r_spruce" = zj_pred[, colnames(zj_pred[[1]]) != "spruce_max"],
-#                    "spruce_pred" = backscale(data$spruce_pred, data$spruce),
-#                    "spruce_max" = backscale(summary(zj_pred[, "spruce_max"])$quantiles, data$spruce),
-#                    "spruce_max_all" = backscale(unlist(zj_pred[, "spruce_max"]), data$spruce))
-# save(export_srs, file = "clean/sac_pred_r_spruce.rda")
-
-# export_srp <- list("r_pine" = zj_pred[, colnames(zj_pred[[1]]) != "pine_max"],
-#                    "pine_pred" = backscale(data$pine_pred, data$pine),
-#                    "pine_max" = backscale(summary(zj_pred[, "pine_max"])$quantiles, data$pine),
-#                    "pine_max_all" = backscale(unlist(zj_pred[, "pine_max"]), data$pine))
-# save(export_srp, file = "clean/sac_pred_r_pine.rda")
-
-# export_srntsp <- zj_pred
-# save(export_srntsp, file = "clean/sac_pred_r_nr_tsp.rda")
-
-export_plot_richness <- zj_pred
-export_plot_richness$dec <- sad_tree$dec
-export_plot_richness$spruce <- sad_tree$spruce
-export_plot_richness$pine <- sad_tree$pine
-save(export_plot_richness, file = "clean/sac_plot_richness.rda")
+ld <- length(data$dec_pred)
+export_dec <- list("r_dec" = zj_pred[, 1:ld],
+                   "s_dec" = zj_pred[, (ld+2):(2*ld+1)],  ## TEST!
+                   "r_dec_max" = backscale(unlist(zj_pred[, "r_dec_max"]), data$dec),
+                   "s_dec_max" = backscale(unlist(zj_pred[, "s_dec_max"]), data$dec),
+                   "dec_pred" = backscale(data$dec_pred, data$dec))
+save(export_dec, file = "clean/export_dec.rda")
 
 stopCluster(cl)
+
+## 7. Run m.spruce -------------------------------------------------------------
+
+cl <- makePSOCKcluster(3) 
+parJagsModel(cl, "lpsac", m.spruce, data, inits, 3, n.adapt)
+parUpdate(cl = cl, object = "lpsac", n.iter = n.iter)
+
+zc <- parCodaSamples(cl = cl, model = "lpsac",
+                     variable.names = c("sigma_rich", "r_alpha", "r_beta_dbh",
+                                        "r_beta_spruce", "r_beta2_spruce",
+                                        "sigma_sat", "s_alpha", "s_beta_dbh",
+                                        "s_beta_spruce", "s_beta2_spruce"),
+                     n.iter = samples, thin = n.thin)
+
+capture.output(summary(zc), HPDinterval(zc, prob = 0.95)) %>% 
+  write(., "results/parameters_lpsac_spruce.txt")
+
+pdf("figures/lpsac_spruce.pdf")
+plot(zc)
+dev.off()
+
+capture.output(raftery.diag(zc), heidel.diag(zc)) %>% 
+  write(., "results/diagnostics_lpsac_spruce.txt")
+
+zj_pred <- parCodaSamples(cl = cl, model = "lpsac",
+                          variable.names = c("r_spruce", "r_spruce_max",
+                                             "s_spruce", "s_spruce_max"),
+                          n.iter = samples, thin = n.thin)
+
+ls <- length(data$spruce_pred)
+export_spruce <- list("r_spruce" = zj_pred[, 1:ls],
+                      "s_spruce" = zj_pred[, (ls+2):(2*ls+1)],
+                      "r_spruce_max" = backscale(unlist(zj_pred[, "r_spruce_max"]), data$spruce),
+                      "s_spruce_max" = backscale(unlist(zj_pred[, "s_spruce_max"]), data$spruce),
+                      "spruce_pred" = backscale(data$spruce_pred, data$spruce))
+save(export_spruce, file = "clean/export_spruce.rda")
+
+stopCluster(cl)
+
+## 8. Run m.pine ---------------------------------------------------------------
+
+cl <- makePSOCKcluster(3) 
+parJagsModel(cl, "lpsac", m.pine, data, inits, 3, n.adapt)
+parUpdate(cl = cl, object = "lpsac", n.iter = n.iter)
+
+zc <- parCodaSamples(cl = cl, model = "lpsac",
+                     variable.names = c("sigma_rich", "r_alpha", "r_beta_dbh",
+                                        "r_beta_pine", "r_beta2_pine",
+                                        "sigma_sat", "s_alpha", "s_beta_dbh",
+                                        "s_beta_pine", "s_beta2_pine"),
+                     n.iter = samples, thin = n.thin)
+
+capture.output(summary(zc), HPDinterval(zc, prob = 0.95)) %>% 
+  write(., "results/parameters_lpsac_pine.txt")
+
+pdf("figures/lpsac_pine.pdf")
+plot(zc)
+dev.off()
+
+capture.output(raftery.diag(zc), heidel.diag(zc)) %>% 
+  write(., "results/diagnostics_lpsac_pine.txt")
+
+zj_pred <- parCodaSamples(cl = cl, model = "lpsac",
+                          variable.names = c("r_pine", "r_pine_max",
+                                             "s_pine", "s_pine_max"),
+                          n.iter = samples, thin = n.thin)
+
+lp <- length(data$pine_pred)
+export_pine <- list("r_pine" = zj_pred[, 1:lp],
+                    "s_pine" = zj_pred[, (lp+2):(2*lp+1)],
+                    "r_pine_max" = backscale(unlist(zj_pred[, "r_pine_max"]), data$pine),
+                    "s_pine_max" = backscale(unlist(zj_pred[, "s_pine_max"]), data$pine),
+                    "pine_pred" = backscale(data$pine_pred, data$pine))
+save(export_pine, file = "clean/export_pine.rda")
+
+stopCluster(cl)
+
+## 9. Run m.tsp ----------------------------------------------------------------
+
+cl <- makePSOCKcluster(3) 
+parJagsModel(cl, "lpsac", m.tsp, data, inits, 3, n.adapt)
+parUpdate(cl = cl, object = "lpsac", n.iter = n.iter)
+
+zc <- parCodaSamples(cl = cl, model = "lpsac",
+                     variable.names = c("sigma_rich", "r_alpha", "r_beta_dbh",
+                                        "r_beta_2tsp", "r_beta_3tsp", "r_beta_4tsp",
+                                        "sigma_sat", "s_alpha", "s_beta_dbh",
+                                        "s_beta_2tsp", "s_beta_3tsp", "s_beta_4tsp"),
+                     n.iter = samples, thin = n.thin)
+
+capture.output(summary(zc), HPDinterval(zc, prob = 0.95)) %>% 
+  write(., "results/parameters_lpsac_tsp.txt")
+
+pdf("figures/lpsac_tsp.pdf")
+plot(zc)
+dev.off()
+
+capture.output(raftery.diag(zc), heidel.diag(zc)) %>% 
+  write(., "results/diagnostics_lpsac_tsp.txt")
+
+zj_pred <- parCodaSamples(cl = cl, model = "lpsac",
+                          variable.names = c("r_1tsp", "r_2tsp", "r_3tsp", "r_4tsp", 
+                                             "r_diff_21", "r_diff_31", 
+                                             "r_diff_41", "r_diff_32",
+                                             "r_diff_42", "r_diff_43",
+                                             "s_1tsp", "s_2tsp", "s_3tsp", "s_4tsp", 
+                                             "s_diff_21", "s_diff_31", 
+                                             "s_diff_41", "s_diff_32",
+                                             "s_diff_42", "s_diff_43"),
+                          n.iter = samples, thin = n.thin)
+
+## Extract probability that difference between nr_tsp is bigger than 0:
+tsp_diff <- combine.mcmc(zj_pred)[, c(5:10, 15:20)]
+ANOVA_prob <- summary(tsp_diff)$quantiles[, c("50%", "2.5%", "97.5%")]
+ANOVA_prob <- cbind(ANOVA_prob, 
+                    "ecdf" = sapply(as.data.frame(tsp_diff), 
+                                    function(x) 1-ecdf(x)(0))) 
+write.csv(ANOVA_prob, "results/ANOVA_results_lpsac.csv")
+
+export_tsp <- zj_pred[c("r_1tsp", "r_2tsp", "r_3tsp", "r_4tsp",
+                        "s_1tsp", "s_2tsp", "s_3tsp", "s_4tsp")]
+save(export_tsp, file = "clean/export_tsp.rda")
+
+stopCluster(cl)
+
+end <- Sys.time()
+end-start
 
 ## -------------------------------END-------------------------------------------
