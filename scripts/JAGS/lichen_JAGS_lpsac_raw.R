@@ -21,11 +21,9 @@ model{
   for(p in 1:nplot){
     ## Richness:
     plot_richness[p] ~ dnorm(mu_rich, 1/sigma_rich^2)
-    # pr_sim[p] ~ dnorm(mu_rich, 1/sigma_rich^2)
     ## Saturation:
-    sat_speed[p] ~ dgamma(shape, rate)
-    shape <- max(0.0001, mu_sat^2/sigma_sat^2)
-    rate <- max(0.0001, mu_sat/sigma_sat^2)
+    sat_speed[p] ~ dgamma(max(0.0001, mu_sat^2/sigma_sat^2), 
+                          max(0.0001, mu_sat/sigma_sat^2))
   }
   
   ## Priors:

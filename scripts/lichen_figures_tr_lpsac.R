@@ -1,7 +1,7 @@
 ## Make figures for ltr and lpsac
 ##
 ## First edit: 20190612
-## Last edit: 20200505
+## Last edit: 20200710
 ##
 ## Author: Julian Klein
 
@@ -9,12 +9,16 @@
 
 rm(list = ls())
 
-require("ggplot2")
-require("ggtern")
-require("ggpubr")
-require("cowplot")
-require("rjags")
-require("data.table")
+
+
+require(ggtern) ## ggtern breaks ggplot2, load  ggplot2 version 3.2.1 to solve problem
+require(devtools)
+install_version("ggplot2", version = "3.2.1", repos = "http://cran.us.r-project.org")
+require(ggplot2)
+require(ggpubr)
+require(cowplot)
+require(rjags)
+require(data.table)
 
 ## 2. Define or source functions used in this script ---------------------------
 
@@ -33,11 +37,11 @@ theme0 <- function(...) theme(legend.position = "none",
 ## 3. Load and explore data ----------------------------------------------------
 
 load("clean/ltr_pred.rdata")
-load("clean/sac_pred_r_dec.rda")
-load("clean/sac_pred_r_spruce.rda")
-load("clean/sac_pred_r_pine.rda")
-load("clean/sac_pred_r_nr_tsp.rda")
-load("clean/sac_plot_richness.rda")
+load("clean/export_dec.rda")
+load("clean/export_spruce.rda")
+load("clean/export_pine.rda")
+load("clean/export_tsp.rda")
+load("clean/plot_estimates.rda")
 
 ## 4. Make graphs for ltr predictions ------------------------------------------
 
@@ -80,29 +84,43 @@ dev.off()
 
 ## Nr. tree species:
 
-y_nr_tsp <- rbind(summary(export_srntsp[, "r_1tsp"])$quantiles,
-                  summary(export_srntsp[, "r_2tsp"])$quantiles,
-                  summary(export_srntsp[, "r_3tsp"])$quantiles,
-                  summary(export_srntsp[, "r_4tsp"])$quantiles)
+y_nr_tsp <- rbind(summary(export_tsp[, "r_1tsp"])$quantiles,
+                  summary(export_tsp[, "r_2tsp"])$quantiles,
+                  summary(export_tsp[, "r_3tsp"])$quantiles,
+                  summary(export_tsp[, "r_4tsp"])$quantiles,
+                  summary(export_tsp[, "s_1tsp"])$quantiles,
+                  summary(export_tsp[, "s_2tsp"])$quantiles,
+                  summary(export_tsp[, "s_3tsp"])$quantiles,
+                  summary(export_tsp[, "s_4tsp"])$quantiles)
 
-d_lntsp <- data.frame("r" = y_nr_tsp[,3],
+d_lntsp <- data.frame("response" = y_nr_tsp[,3],
                       "lower" = y_nr_tsp[,1],
                       "upper" = y_nr_tsp[,5],
-                      "nr_tsp" = 1:4)
+                      "nr_tsp" = rep(1:4, 2),
+                      "cat" = c(rep("SAC asymptote (alpha diversity)", 4), 
+                                rep("SAC half-saturation (beta diversity)", 4)))
 
-p1 <- ggplot(d_lntsp, aes(x = nr_tsp, y = r))
+## Annotation data:
+ann_text <- data.frame(nr_tsp = c(2, 3), 
+                       response = c(28, 30.6),
+                       cat = factor(d_lntsp$cat[1]))
+
+p1 <- ggplot(d_lntsp, aes(x = nr_tsp, y = response))
 p2 <- geom_line(size = 1, linetype = "dashed")
-p3 <- geom_point(size = 2)
+p3 <- geom_point(size = 3)
 p4 <- geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2)
-p5 <- annotate("text", x = c(2, 3), y = 20, label = "A", size = 10)
-
-png("figures/figure_2.png", 9000, 7000, "px", res = 600)
-
-p1 + p2 + p3 + p4 + p5 +
-  ylab("expected stand lichen richness") + 
+p5 <- facet_grid(cat ~ ., scales = "free_y")
+p6 <- geom_text(data = ann_text, 
+                label = "A", 
+                show.legend = FALSE, 
+                size = 11, 
+                colour = "black")
+  
+png("figures/figure_2_new.png", 8000/4, 10000/4, "px", res = 600/4)
+p1 + p2 + p3 + p4 + p5 + p6 +
+  ylab("        sampled trees                    expected species richness") + 
   xlab("number of tree species") +
   theme_classic(40) 
-
 dev.off()
 
 ## All percentages combined:

@@ -185,7 +185,7 @@ pred <- as.data.frame(cbind(pred, "plot" = unlist(plot)))
 
 dev.off()
 
-pdf("figures/sim_vs_obs.pdf")
+pdf("figures/sim_vs_obs_new.pdf")
 par(mfrow = c(3, 2))
 for(i in 1:data$nplot) {
   x = c(0, pred[pred$plot == i, "ntree"])
@@ -371,8 +371,8 @@ ANOVA_prob <- cbind(ANOVA_prob,
                                     function(x) 1-ecdf(x)(0))) 
 write.csv(ANOVA_prob, "results/ANOVA_results_lpsac.csv")
 
-export_tsp <- zj_pred[c("r_1tsp", "r_2tsp", "r_3tsp", "r_4tsp",
-                        "s_1tsp", "s_2tsp", "s_3tsp", "s_4tsp")]
+export_tsp <- zj_pred[, c("r_1tsp", "r_2tsp", "r_3tsp", "r_4tsp",
+                          "s_1tsp", "s_2tsp", "s_3tsp", "s_4tsp")]
 save(export_tsp, file = "clean/export_tsp.rda")
 
 stopCluster(cl)
