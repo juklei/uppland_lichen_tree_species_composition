@@ -51,11 +51,13 @@ str(sad_tree)
 ## Calculate the number of trees by plot:
 ntree <- apply(sad, 3, function(x) sum(!is.na(x[,2])))
 
+obs <- apply(sad, c(1,3), mean)
+
 ## Create model data set:
 data <- list(nrep = dim(sad)[2],
              nplot = dim(sad)[3],
              ntree = ntree,
-             obs = sad,
+             obs = obs,
              dec = scale(sad_tree$dec),
              spruce = scale(sad_tree$spruce),
              pine = scale(sad_tree$pine),
@@ -80,50 +82,41 @@ data$pine_pred <- seq(min(data$pine), max(data$pine), 0.05)
 
 str(data)
 
-## Produce inits:
-plot_richness <- sad[1,,]
-plot_richness[] <- 20
-sat_speed <- sad[1,,]
-sat_speed[] <- 5
-
-inits <- list(list(plot_richness = plot_richness,
-                   sat_speed = sat_speed,
-                   r_alpha = 1, r_beta_dbh = 1,
+inits <- list(list(sd_obs = rep(1, data$nplot),
+                   r_alpha = 10, r_beta_dbh = 1,
                    r_beta_dec = 1, r_beta2_dec = 1,
                    r_beta_spruce = 1, r_beta2_spruce = 1,
                    r_beta_pine = 1, r_beta2_pine = 1,
                    r_beta_2tsp = 1, r_beta_3tsp = 1, r_beta_4tsp = 1,
-                   sigma_sat = 1, sd_r_ek = 1, sd_s_ek = 1,
-                   s_alpha = 0, s_beta_dbh = 0.2,
-                   s_beta_dec = 1, s_beta2_dec = 1,
-                   s_beta_spruce = 1, s_beta2_spruce = 1,
-                   s_beta_pine = 1, s_beta2_pine = 1, 
+                   sigma_rich = 2, sigma_sat = 1, 
+                   s_alpha = 3, s_beta_dbh = -0.2,
+                   s_beta_dec = 0.1, s_beta2_dec = 0.1,
+                   s_beta_spruce = 0.1, s_beta2_spruce = 0.1,
+                   s_beta_pine = 0.1, s_beta2_pine = 0.1, 
                    s_beta_2tsp = 0, s_beta_3tsp = 0, s_beta_4tsp = 0),
-              list(plot_richness = plot_richness + 10,
-                   sat_speed = sat_speed - 3,
-                   r_alpha = -1, r_beta_dbh = -1,
+              list(sd_obs = rep(1, data$nplot),
+                   r_alpha = 18, r_beta_dbh = -1,
                    r_beta_dec = -1, r_beta2_dec = -1,
                    r_beta_spruce = -1, r_beta2_spruce = -1,
                    r_beta_pine = -1, r_beta2_pine = -1,
                    r_beta_2tsp = -1, r_beta_3tsp = -1, r_beta_4tsp = -1,
-                   sigma_sat = 2, sd_r_ek = 2, sd_s_ek = 2,
+                   sigma_rich = 10, sigma_sat = 5, 
                    s_alpha = 1, s_beta_dbh = -0.2,
                    s_beta_dec = -1, s_beta2_dec = -1,
                    s_beta_spruce = -1, s_beta2_spruce = -1,
                    s_beta_pine = -1, s_beta2_pine = -1, 
                    s_beta_2tsp = 1, s_beta_3tsp = 1, s_beta_4tsp = 1),
-              list(plot_richness = plot_richness - 10,
-                   sat_speed = sat_speed + 3,
-                   r_alpha = 0, r_beta_dbh = 0,
-                   r_beta_dec = 0, r_beta2_dec = 0.1,
-                   r_beta_spruce = 0, r_beta2_spruce = 0.1,
-                   r_beta_pine = 0, r_beta2_pine = 0.1,
-                   r_beta_2tsp = 0, r_beta_3tsp = 0, r_beta_4tsp = 0,
-                   sigma_sat = 0.1, sd_r_ek = 0.1, sd_s_ek = 0.1,
-                   s_alpha = -1, s_beta_dbh = 0,
-                   s_beta_dec = 0, s_beta2_dec = 0.1,
-                   s_beta_spruce = 0, s_beta2_spruce = 0.1,
-                   s_beta_pine = 0, s_beta2_pine = 0.1, 
+              list(sd_obs = rep(1, data$nplot),
+                   r_alpha = 40, r_beta_dbh = 0,
+                   r_beta_dec = 0.01, r_beta2_dec = 0.1,
+                   r_beta_spruce = 0.01, r_beta2_spruce = 0.1,
+                   r_beta_pine = 0.01, r_beta2_pine = 0.1,
+                   r_beta_2tsp = 0.01, r_beta_3tsp = 0.01, r_beta_4tsp = 0.01,
+                   sigma_rich = 0.1, sigma_sat = 3, 
+                   s_alpha = -1, s_beta_dbh = 0.01,
+                   s_beta_dec = 0.01, s_beta2_dec = 0.01,
+                   s_beta_spruce = 0.01, s_beta2_spruce = 0.01,
+                   s_beta_pine = 0.01, s_beta2_pine = 0.01, 
                    s_beta_2tsp = 1, s_beta_3tsp = 1, s_beta_4tsp = 1))
 
 ## Load the models:
@@ -135,7 +128,7 @@ m.tsp <- "scripts/JAGS/lichen_JAGS_lpsac_tsp_new.R"
 
 start <- Sys.time()
 
-n.adapt <- 5000; n.iter <- 5000; samples <- 5000; n.thin <- 100
+n.adapt <- 5000; n.iter <- 5000; samples <- 2500; n.thin <- 5
 
 ## 5. Run m.raw ----------------------------------------------------------------
 
@@ -156,7 +149,8 @@ parUpdate(cl = cl, object = "lpsac", n.iter = n.iter)
 
 ## Extract samples from estimated parameters:
 zc <- parCodaSamples(cl = cl, model = "lpsac",
-                     variable.names = c("lambda_rich", "mu_sat", "sigma_sat"),
+                     variable.names = c("mu_rich", "sigma_rich",
+                                        "mu_sat", "sigma_sat"),
                      n.iter = samples, 
                      thin = n.thin)
 
@@ -176,33 +170,29 @@ capture.output(raftery.diag(zc), heidel.diag(zc)) %>%
 ## Produce SAC from fitted model and compare with raw data:
 
 zc_val <- parCodaSamples(cl = cl, model = "lpsac",
-                         variable.names = c("mean_op", "min_op", "max_op"),
+                         variable.names = "obs_pred",
                          n.iter = samples,
                          thin = n.thin)
 
-pred <- summary(zc_val, quantiles = 0.5)$quantiles
+pred <- summary(zc_val, quantiles = c(0.025, 0.5, 0.975))$quantiles
 pred <- cbind(pred, "ntree" = unlist(lapply(data$ntree, function(x) 1:x)))
 plot <- list() ; for(i in 1:data$nplot){plot[[i]] <- rep(i, ntree[i])}
 pred <- as.data.frame(cbind(pred, "plot" = unlist(plot)))
-pred$var <- c(rep("max", nrow(pred)/3), 
-              rep("mean", nrow(pred)/3),
-              rep("min", nrow(pred)/3))
 
 dev.off()
 
 pdf("figures/sim_vs_obs_new.pdf")
 par(mfrow = c(3, 2))
 for(i in 1:data$nplot) {
-  x = c(0, unique(pred[pred$plot == i, "ntree"]))
+  x = c(0, pred[pred$plot == i, "ntree"])
   y = pred[pred$plot == i, ]
-  plot(x, c(0, y$pred[y$var == "max"]), 
+  plot(x, c(0, y$`97.5%`), 
        xlab = "tree nr", ylab = "richness",
        lty = "dashed", col = "blue", typ = "l")
-  lines(x, c(0, y$pred[y$var == "mean"]), col = "blue")
-  lines(x, c(0, y$pred[y$var == "min"]), lty = "dashed", col = "blue")
+  lines(x, c(0, y$`50%`), col = "blue")
+  lines(x, c(0, y$`2.5%`), lty = "dashed", col = "blue")
   ## Real data:
-  points(rep(which(!is.na(sad[, 1, i])), dim(sad)[2]),
-         na.omit(as.vector(sad[, , i])))
+  points(1:(length(x)-1), na.omit(as.vector(obs[,i])))
 }
 dev.off()
 
@@ -228,11 +218,10 @@ parJagsModel(cl, "lpsac", m.dec, data, inits, 3, n.adapt)
 parUpdate(cl = cl, object = "lpsac", n.iter = n.iter)
 
 zc <- parCodaSamples(cl = cl, model = "lpsac",
-                     variable.names = c("r_alpha", "r_beta_dbh",
+                     variable.names = c("sigma_rich", "r_alpha", "r_beta_dbh",
                                         "r_beta_dec", "r_beta2_dec",
                                         "sigma_sat", "s_alpha", "s_beta_dbh",
-                                        "s_beta_dec", "s_beta2_dec",
-                                        "sd_r_ek", "sd_s_ek"),
+                                        "s_beta_dec", "s_beta2_dec"),
                      n.iter = samples, thin = n.thin)
 
 capture.output(summary(zc), HPDinterval(zc, prob = 0.95)) %>% 
@@ -267,11 +256,10 @@ parJagsModel(cl, "lpsac", m.spruce, data, inits, 3, n.adapt)
 parUpdate(cl = cl, object = "lpsac", n.iter = n.iter)
 
 zc <- parCodaSamples(cl = cl, model = "lpsac",
-                     variable.names = c("r_alpha", "r_beta_dbh",
+                     variable.names = c("sigma_rich", "r_alpha", "r_beta_dbh",
                                         "r_beta_spruce", "r_beta2_spruce",
                                         "sigma_sat", "s_alpha", "s_beta_dbh",
-                                        "s_beta_spruce", "s_beta2_spruce",
-                                        "sd_r_ek", "sd_s_ek"),
+                                        "s_beta_spruce", "s_beta2_spruce"),
                      n.iter = samples, thin = n.thin)
 
 capture.output(summary(zc), HPDinterval(zc, prob = 0.95)) %>% 
@@ -306,11 +294,10 @@ parJagsModel(cl, "lpsac", m.pine, data, inits, 3, n.adapt)
 parUpdate(cl = cl, object = "lpsac", n.iter = n.iter)
 
 zc <- parCodaSamples(cl = cl, model = "lpsac",
-                     variable.names = c("r_alpha", "r_beta_dbh",
+                     variable.names = c("sigma_rich", "r_alpha", "r_beta_dbh",
                                         "r_beta_pine", "r_beta2_pine",
                                         "sigma_sat", "s_alpha", "s_beta_dbh",
-                                        "s_beta_pine", "s_beta2_pine",
-                                        "sd_r_ek", "sd_s_ek"),
+                                        "s_beta_pine", "s_beta2_pine"),
                      n.iter = samples, thin = n.thin)
 
 capture.output(summary(zc), HPDinterval(zc, prob = 0.95)) %>% 
@@ -342,14 +329,13 @@ stopCluster(cl)
 
 cl <- makePSOCKcluster(3) 
 parJagsModel(cl, "lpsac", m.tsp, data, inits, 3, n.adapt)
-parUpdate(cl = cl, object = "lpsac", n.iter = n.iter*2)
+parUpdate(cl = cl, object = "lpsac", n.iter = n.iter)
 
 zc <- parCodaSamples(cl = cl, model = "lpsac",
-                     variable.names = c("r_alpha", "r_beta_dbh",
+                     variable.names = c("sigma_rich", "r_alpha", "r_beta_dbh",
                                         "r_beta_2tsp", "r_beta_3tsp", "r_beta_4tsp",
                                         "sigma_sat", "s_alpha", "s_beta_dbh",
-                                        "s_beta_2tsp", "s_beta_3tsp", "s_beta_4tsp",
-                                        "sd_r_ek", "sd_s_ek"),
+                                        "s_beta_2tsp", "s_beta_3tsp", "s_beta_4tsp"),
                      n.iter = samples, thin = n.thin)
 
 capture.output(summary(zc), HPDinterval(zc, prob = 0.95)) %>% 
