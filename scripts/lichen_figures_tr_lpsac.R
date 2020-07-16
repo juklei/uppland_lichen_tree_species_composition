@@ -9,11 +9,8 @@
 
 rm(list = ls())
 
-
-
-require(ggtern) ## ggtern breaks ggplot2, load  ggplot2 version 3.2.1 to solve problem
 require(devtools)
-install_version("ggplot2", version = "3.2.1", repos = "http://cran.us.r-project.org")
+# install_version("ggplot2", version = "3.3.0", repos = "http://cran.us.r-project.org")
 require(ggplot2)
 require(ggpubr)
 require(cowplot)
@@ -125,32 +122,37 @@ dev.off()
 
 ## All percentages combined:
 
-y_all <- rbind(summary(export_srd$r_dec)$quantiles[
-               1:length(export_srd$dec_pred), ],
-               summary(export_srs$r_spruce)$quantiles[
-               1:length(export_srs$spruce_pred), ],
-               summary(export_srp$r_pine)$quantiles[
-               1:length(export_srp$pine_pred), ])
+## Chose diversity index here:
+div <- "alpha"
+# div <- "beta"
 
-d_all <- data.frame("r" = y_all[,3],
-                    "lower" = y_all[,1],
-                    "upper" = y_all[,5],
-                    "perc_tree" = c(export_srd$dec_pred,
-                                    export_srs$spruce_pred,
-                                    export_srp$pine_pred),
-                    "tree_species" = c(rep("deciduous", 
-                                           length(export_srd$dec_pred)),
-                                       rep("spruce", 
-                                           length(export_srs$spruce_pred)),
-                                       rep("pine", 
-                                           length(export_srp$pine_pred))))
+y_all <- rbind(summary(export_dec$r_dec)$quantiles,
+               summary(export_spruce$r_spruce)$quantiles,
+               summary(export_pine$r_pine)$quantiles,
+               summary(export_dec$s_dec)$quantiles,
+               summary(export_spruce$s_spruce)$quantiles,
+               summary(export_pine$s_pine)$quantiles)
+
+d_all <- data.frame("r" = y_all[,3], "lower" = y_all[,1], "upper" = y_all[,5])
+d_all$perc_tree <-  c(export_dec$dec_pred, 
+                      export_spruce$spruce_pred,
+                      export_pine$pine_pred)
+d_all$tree_species <-  c(rep("deciduous", length(export_dec$dec_pred)),
+                         rep("spruce", length(export_spruce$spruce_pred)),
+                         rep("pine", length(export_pine$pine_pred)))
+d_all$diversity <- c(rep("alpha", nrow(d_all)/2), rep("beta", nrow(d_all)/2))
+
 ## Maxima:
-maxima <- data.frame("value" = c(export_srd$dec_max_all,
-                                 export_srs$spruce_max_all,
-                                 export_srp$pine_max_all),
-                     "tree_species" = c(rep("deciduous", length(export_srd$dec_max_all)),
-                                        rep("spruce", length(export_srs$spruce_max_all)),
-                                        rep("pine", length(export_srp$pine_max_all))))
+maxima <- data.frame("value" = c(export_dec$r_dec_max,
+                                 export_spruce$r_spruce_max,
+                                 export_pine$r_pine_max,
+                                 export_dec$s_dec_max,
+                                 export_spruce$s_spruce_max,
+                                 export_pine$s_pine_max))
+maxima$tree_species <-  c(rep("deciduous", length(export_dec$r_dec_max)),
+                          rep("spruce", length(export_spruce$r_spruce_max)),
+                          rep("pine", length(export_pine$r_pine_max)))
+maxima$diversity <- c(rep("alpha", nrow(maxima)/2), rep("beta", nrow(maxima)/2))
 
 ## Style for both:
 s1 <- scale_color_manual(breaks = c("deciduous", "pine", "spruce"), 
@@ -158,8 +160,13 @@ s1 <- scale_color_manual(breaks = c("deciduous", "pine", "spruce"),
 s2 <- scale_fill_manual(breaks = c("deciduous", "pine", "spruce"),
                         values = c("#ffc425", "#d11141", "black"))
 
+## Ylab for ggplot & ggtern:
+if(div == "alpha"){ylab <- "SAC asymptote (alpha diversity)"} else{
+  ylab <- "SAC half-saturation (beta diversity)"
+}
+
 ## Predictions:
-q1 <- ggplot(d_all, 
+q1 <- ggplot(droplevels(d_all[d_all$diversity == div, ]), 
              aes(x = perc_tree*100, 
                  y = r, 
                  fill = tree_species, 
@@ -167,9 +174,9 @@ q1 <- ggplot(d_all,
                  lty = tree_species))
 q2 <- geom_line(size = 2)
 q3 <- geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .2, colour = NA)
+
 Q <- q1 + q2 + q3 +
-     ylab("expected stand lichen richness") + 
-     xlab("percentage of trees") +
+     ylab(ylab) + xlab("percentage of trees") +
      s1 + s2 +
      theme_classic(40) +                  
      theme(legend.position = c(0.4, 0.10), 
@@ -178,7 +185,7 @@ Q <- q1 + q2 + q3 +
            legend.direction = "horizontal")
 
 ## Maxima:
-p1 <- ggplot(data = maxima, 
+p1 <- ggplot(data = droplevels(maxima[maxima$diversity == div, ]), 
              aes(x = value*100, 
                  color = tree_species, 
                  fill = tree_species,
@@ -190,17 +197,21 @@ PQ <- plot_grid(P, Q, align = "v", nrow = 2, rel_heights = c(1/5, 4/5))
 
 ## Ternary plot:
 
-y_all <- rbind(as.matrix(export_plot_richness[[1]]),
-               as.matrix(export_plot_richness[[2]]),
-               as.matrix(export_plot_richness[[3]]))
+y_all <- rbind(as.matrix(plot_estimates[[1]]),
+               as.matrix(plot_estimates[[2]]),
+               as.matrix(plot_estimates[[3]]))
 
 d_all <- data.frame("r" = apply(y_all, 2, mean),
                     "sd" = apply(y_all, 2, sd),
-                    "dec" = export_plot_richness$dec,
-                    "spruce" = export_plot_richness$spruce,
-                    "pine" = export_plot_richness$pine)
+                    "dec" = rep(plot_estimates$dec, 2),
+                    "spruce" = rep(plot_estimates$spruce, 2),
+                    "pine" = rep(plot_estimates$pine, 2),
+                    "diversity" = c(rep("alpha", length(plot_estimates$dec)),
+                                    rep("beta", length(plot_estimates$dec))))
 
-R <- ggtern(data = d_all, aes(x = dec, y = spruce, z = pine)) +
+require(ggtern) ## ggtern breaks ggplot2, load  ggplot2 version 3.2.1 to solve problem
+R <- ggtern(droplevels(d_all[d_all$diversity == div, ]), 
+            aes(x = dec, y = spruce, z = pine)) +
   # stat_density_tern(geom = 'polygon',
   #                   n         = 500,
   #                   aes(colour  = ..level.., alpha = ..level..)) +
@@ -212,30 +223,40 @@ R <- ggtern(data = d_all, aes(x = dec, y = spruce, z = pine)) +
   scale_colour_gradient(low = "yellow", high = "blue") + 
   # scale_fill_gradient(low = "white", high = "yellow")  +
   # guides(colour = "", fill = "none", alpha = "none") +
-  xlab("") + ylab("") + zlab("") +
-  labs(colour = "expected stand lichen richness", size = 10) +
+  xlab("") + ylab("") + ggtern::zlab("") +
+  labs(colour = ylab, size = 10) +
   theme_classic(40) + 
-  theme(legend.position = c(0.5, -0.1), 
+  theme(legend.position = "bottom",#"c(0.5, -0.05)", 
         legend.key.size = unit(3, 'lines'),
         legend.direction = "horizontal") +
-  Tarrowlab("% spruce") + Larrowlab("% deciduous") + Rarrowlab("% pine") +
+  Tarrowlab("% spruce") + 
+  Larrowlab("% deciduous") + 
+  Rarrowlab("% pine") +
   theme_showarrows()
 
 R
 
-## Annotate and export combined plots:
+# # ## Annotate and export combined plots:
+# # 
+# # PQ <- annotate_figure(PQ, 
+# #                       fig.lab = " (a)",
+# #                       fig.lab.pos = "top.left", 
+# #                       fig.lab.size = 35)
+# # R <- annotate_figure(R,
+# #                      fig.lab = " (b)", 
+# #                      fig.lab.pos = "top.left",
+# #                      fig.lab.size = 35)
+# 
+# png("figures/figure_3_new.png", 16000/4, 8000/4, "px", res = 600/4)
+# plot_grid(PQ, R, align = "h", axis = "t", ncol = 2, rel_widths = c(0.52, 0.48))
+# dev.off()
 
-PQ <- annotate_figure(PQ, 
-                      fig.lab = " (a)",
-                      fig.lab.pos = "top.left", 
-                      fig.lab.size = 35)
-R <- annotate_figure(R,
-                     fig.lab = " (b)", 
-                     fig.lab.pos = "top.left",
-                     fig.lab.size = 35)
+png(paste0("figures/figure_3a_new", div, ".png"), 8000/4, 8000/4, "px", res = 600/4)
+PQ
+dev.off()
 
-png("figures/figure_3.png", 16000, 8000, "px", res = 600)
-plot_grid(PQ, R, align = "h", axis = "t", ncol = 2, rel_widths = c(0.52, 0.48))
+png(paste0("figures/figure_3b_new", div, ".png"), 8000/4, 8000/4, "px", res = 600/4)
+R
 dev.off()
 
 ## -------------------------------END-------------------------------------------
