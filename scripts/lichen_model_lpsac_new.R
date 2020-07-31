@@ -128,7 +128,7 @@ m.tsp <- "scripts/JAGS/lichen_JAGS_lpsac_tsp_new.R"
 
 start <- Sys.time()
 
-n.adapt <- 5000; n.iter <- 5000; samples <- 2500; n.thin <- 5
+n.adapt <- 5000; n.iter <- 15000; samples <- 25000; n.thin <- 20
 
 ## 5. Run m.raw ----------------------------------------------------------------
 

@@ -33,48 +33,50 @@ theme0 <- function(...) theme(legend.position = "none",
 
 ## 3. Load and explore data ----------------------------------------------------
 
-load("clean/ltr_pred.rdata")
+lto <- read.csv("results/lto_tsp.csv")
+lto <- lto[lto$identity == "Richness", - 1]
 load("clean/export_dec.rda")
 load("clean/export_spruce.rda")
 load("clean/export_pine.rda")
 load("clean/export_tsp.rda")
 load("clean/plot_estimates.rda")
 
-## 4. Make graphs for ltr predictions ------------------------------------------
+## 4. Make graphs for lto predictions ------------------------------------------
 
 ## Group mean plot for tree species:
 
 ## Make data set:
-y_ls <- cbind(summary(export_ltr$pine_mean, quantile, c(.025,.5,.975))$stat,
-              summary(export_ltr$spruce_mean, quantile, c(.025,.5,.975))$stat,
-              summary(export_ltr$aspen_mean, quantile, c(.025,.5,.975))$stat,
-              summary(export_ltr$oak_mean, quantile, c(.025,.5,.975))$stat,
-              summary(export_ltr$alder_mean, quantile, c(.025,.5,.975))$stat,
-              summary(export_ltr$birch_mean, quantile, c(.025,.5,.975))$stat)
-      
-d_ls <- data.frame("richness" = t(y_ls)[,2],
-                   "lower" = t(y_ls)[,1],
-                   "upper" = t(y_ls)[,3],
-                   "species" = c("pine", "spruce", "aspen", "oak", "alder", 
-                                 "birch"))
+lto <- t(lto)
+
+lto_r <- sapply(strsplit(lto, split = "(", fixed = TRUE), FUN = "[[", 1)
+lto_lu <- sapply(strsplit(lto, split = "(", fixed = TRUE), FUN = "[[", 2)
+lto_l <- sapply(strsplit(lto_lu, split = "-"), FUN = "[[", 1)
+lto_u <- sapply(strsplit(lto_lu, split = "-"), FUN = "[[", 2)
+lto_u <- unlist(strsplit(lto_u, ")"))
+
+d_ls <- data.frame("richness" = as.numeric(lto_r), 
+                   "lower" = as.numeric(lto_l),
+                   "upper" = as.numeric(lto_u),
+                   "species" = rownames(lto))
 d_ls$species <- factor(d_ls$species, 
-                       levels =  c("aspen", "birch", "oak", "alder", "pine", 
-                                   "spruce"))
+                       levels =  c("tree", "aspen", "birch", "oak", "alder", 
+                                   "pine", "spruce"))
 
-g1 <- ggplot(d_ls, aes(x = species, y = richness))
-g2 <- geom_point(size = 2)
+g1 <- ggplot(d_ls[d_ls$species != "tree", ], aes(x = species, y = richness))
+g2 <- geom_point(size = 4)
 g3 <- geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.3)
-g4 <- annotate("text", 
+g4 <- geom_hline(yintercept = unlist(d_ls[d_ls$species == "tree", 1:3]),
+                 linetype = c("solid", "dashed", "dashed"),
+                 alpha = 0.4)
+g5 <- annotate("text", 
                x = c("birch", "oak", "alder", "pine", "spruce"), 
-               y = 5, 
-               label = c("A", "A,B,C", "B", "B", "C"), 
-               size = 10)
+               y = 4, 
+               label = c("A", "A,B,C", "B", "C,D", "D"), 
+               size = 12)
 
-png("figures/figure_1.png", 10000, 7000, "px", res = 600)
-
-g1 + g2 + g3 + g4 + theme_classic(40) + ylab("lichen richness per tree") + 
-  xlab("")
-
+png("figures/figure_1.png", 10000/4, 7000/4, "px", res = 600/4)
+g1 + g2 + g3 + g4 + g5 + 
+  theme_classic(45) + ylab("species richness per tree") + xlab("")
 dev.off()
 
 ## 5. Make graphs for lpsac ----------------------------------------------------
@@ -99,7 +101,7 @@ d_lntsp <- data.frame("response" = y_nr_tsp[,3],
 
 ## Annotation data:
 ann_text <- data.frame(nr_tsp = c(2, 3), 
-                       response = c(28, 30.6),
+                       response = 20, 
                        cat = factor(d_lntsp$cat[1]))
 
 p1 <- ggplot(d_lntsp, aes(x = nr_tsp, y = response))

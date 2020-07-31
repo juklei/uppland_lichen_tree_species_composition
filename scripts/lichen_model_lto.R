@@ -1,8 +1,8 @@
 ## model lichen occurence in a hierarchical model with stem diameter and tree
-## species at the tree level  
+## species at the tree level. Takes 2.6 days with 2.6 GHz and 16GB RAM.
 ##
 ## First edit: 2020706
-## Last edit: 20200706
+## Last edit: 20200731
 ##
 ## Author: Julian Klein
 
@@ -134,10 +134,13 @@ jm <- parJagsModel(cl = cl,
                    inits = inits,
                    n.chains = 3) 
 
-parUpdate(cl = cl, object = "lto", n.iter = 10000)
+parUpdate(cl = cl, object = "lto", n.iter = 5000)
 
-samples <- 10000
-n.thin <- 10
+end <- Sys.time()
+end-start
+
+samples <- 50000
+n.thin <- 40
 
 zc_1 <- parCodaSamples(cl = cl, model = "lto",
                        variable.names = c("mu_alpha", "sd_alpha",
@@ -190,12 +193,15 @@ out <- as.data.frame(summary(zc_2)$quantiles[, c("50%", "2.5%", "97.5%")])
 out <- round(out, 2)
 out$value <- paste0(out$`50%`, "(", out$`2.5%`, "-", out$`97.5%`, ")")
 out$tsp <- unlist(tstrsplit(rownames(out), split = "_", keep = 1))
-out$identity <- c(levels(lto$species), "Richness (sum of P(occupied)")
+out$identity <- c(levels(lto$species), "Richness")
 
 ## Export the table:
 write.csv(dcast(out, identity ~ tsp, value.var = "value"), 
           "results/lto_tsp.csv", 
           row.names = FALSE)
+
+end <- Sys.time()
+end-start
 
 ## DIfferences in Species richness per tree species:
 
@@ -219,5 +225,8 @@ ANOVA <- as.data.frame(summary(zc_3)$quantiles[, c("50%", "2.5%", "97.5%")])
 ANOVA$ecdf <- apply(zc_3, 2, function(x) 1-ecdf(x)(0)) 
 
 write.csv(ANOVA, "results/ANOVA_results_lto.csv")
+
+end <- Sys.time()
+end-start
 
 ## -------------------------------END-------------------------------------------

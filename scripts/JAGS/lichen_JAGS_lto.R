@@ -44,19 +44,19 @@ model{
   
   ## Hyperpriors:
   
-  mu_alpha ~ dnorm(0, 0.1)
+  mu_alpha ~ dnorm(0, 0.01)
   sd_alpha ~ dt(0, pow(2.5,-2), 1)T(0,)
-  mu_b_pine ~ dnorm(0, 0.1)
+  mu_b_pine ~ dnorm(0, 0.01)
   sd_b_pine ~ dt(0, pow(2.5,-2), 1)T(0,)
-  mu_b_spruce ~ dnorm(0, 0.1)
+  mu_b_spruce ~ dnorm(0, 0.01)
   sd_b_spruce ~ dt(0, pow(2.5,-2), 1)T(0,)
-  mu_b_aspen ~ dnorm(0, 0.1)
+  mu_b_aspen ~ dnorm(0, 0.01)
   sd_b_aspen ~ dt(0, pow(2.5,-2), 1)T(0,)
-  mu_b_oak ~ dnorm(0, 0.1)
+  mu_b_oak ~ dnorm(0, 0.01)
   sd_b_oak ~ dt(0, pow(2.5,-2), 1)T(0,)
-  mu_b_alder ~ dnorm(0, 0.1)
+  mu_b_alder ~ dnorm(0, 0.01)
   sd_b_alder ~ dt(0, pow(2.5,-2), 1)T(0,)
-  mu_b_dbh ~ dnorm(0, 0.1)
+  mu_b_dbh ~ dnorm(0, 0.01)
   sd_b_dbh ~ dt(0, pow(2.5,-2), 1)T(0,)
   u_sp ~ dunif(0, 5)
 
