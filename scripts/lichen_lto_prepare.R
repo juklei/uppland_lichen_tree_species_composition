@@ -37,7 +37,7 @@ T1 <- l_obs[, c("Physcia.adscendens",
 l_obs$P..adscendens.tenella <- ifelse(rowSums(T1, na.rm = TRUE) > 0, 1, NA)
 
 ## Reduce data set to desired columns:
-lo_red <- as.data.table(l_obs[, c(2, 10:12, 14, 17:29, 31:132, 134:137)])
+lo_red <- as.data.table(l_obs[, c(2, 10:12, 14, 17:29, 31:110, 112, 114:132, 134:137)])
 
 ## Make data frame based on occupancy of all species per tree:
 l_occ <- melt(lo_red, 
@@ -48,12 +48,6 @@ l_occ <- melt(lo_red,
 
 ## Replace NA with 0 in species list to get presence absence per tree:
 l_occ$observed[is.na(l_occ$observed)] <- 0
-
-# ## Exclude combinations of tree species, stem/branches and lichen species that
-# ## are never observed:
-# l_occ <- merge(l_occ,
-#                from_GT[from_GT$observable == "yes", 1:4],
-#                by = c("Tree.species", "Stem.S.Branches.B.T.Total", "species"))
 
 ## Calculate total observed per tree:
 
