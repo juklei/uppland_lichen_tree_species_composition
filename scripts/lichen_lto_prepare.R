@@ -16,8 +16,7 @@ library(corrgram)
 ## 2. Load and explore data ----------------------------------------------------
 
 dir("data")
-from_GT <- read.csv("data/from_GT_observable_lichen.csv")
-l_obs <- read.csv("data/Data_lavar_Almunge15_March_2019.csv")
+l_obs <- read.csv("data/epiphytic_lichen_data.csv")
 
 head(l_obs)
 
