@@ -59,10 +59,6 @@ model{
   mu_b_dbh ~ dnorm(0, 0.01)
   sd_b_dbh ~ dt(0, pow(2.5,-2), 1)T(0,)
   u_sp ~ dunif(0, 5)
-
-  ## Model validation:
-
-  ##...
   
   ## Posterior:
   

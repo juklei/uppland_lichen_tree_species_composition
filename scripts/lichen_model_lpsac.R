@@ -97,15 +97,15 @@ inits <- list(list(sd_obs = rep(1, data$nplot),
               list(sd_obs = rep(0.5, data$nplot),
                    gdiv = rep(40, data$nplot), bdiv = rep(2, data$nplot),
                    sigma_gdiv = 5,
-                   g_icpt = 33, g_dbh = -2, g_perc = 0, g_perc2 = -10,
+                   g_icpt = 33, g_dbh = -2, g_perc = 0.1, g_perc2 = -10,
                    sigma_bdiv = 0.5, 
                    b_icpt = 1.15, b_dbh = -0.1, b_perc = 0.1, b_perc2 = -0.1),
               list(sd_obs = rep(2, data$nplot),
                    gdiv = rep(20, data$nplot), bdiv = rep(3, data$nplot),
                    sigma_gdiv = 10,
-                   g_icpt = 45, g_dbh = 5, g_perc = 10, g_perc2 = 0,
+                   g_icpt = 45, g_dbh = 5, g_perc = 10, g_perc2 = 0.1,
                    sigma_bdiv = 1.5, 
-                   b_icpt = 1.5, b_dbh = 0.02, b_perc = 0.4, b_perc2 = 0))
+                   b_icpt = 1.5, b_dbh = 0.02, b_perc = 0.4, b_perc2 = 0.1))
 
 perc_pred_export <- vector("list", 3)
 names(perc_pred_export) <- c("dec", "spruce", "pine")
@@ -171,12 +171,12 @@ for(i in c("dec", "spruce", "pine")){
 ## Export for graphing:
 pred_perc <- reshape2::melt(perc_pred_export,
                             measure.vars = colnames(perc_pred_export))
-write.csv(pred_perc, paste0("clean/lpsac_collector_pred_perc.csv"))
+write.csv(pred_perc, paste0("clean/lpsac_pred_perc.csv"))
 
 ## Export for graphing:
 pp_max <- reshape2::melt(perc_max_export, 
                          measure.vars = colnames(perc_max_export))
-write.csv(pp_max, "clean/lpsac_collector_max_perc.csv")
+write.csv(pp_max, "clean/lpsac_max_perc.csv")
 
 ## 6. Run m.tsp ----------------------------------------------------------------
 
@@ -276,8 +276,8 @@ write.csv(pred1, "clean/lpsac_site_pred.csv")
 
 zc_val <- parCodaSamples(cl = cl, model = "lpsac",
                          variable.names = "obs_pred",
-                         n.iter = samples/2,
-                         thin = n.thin/2)
+                         n.iter = samples,
+                         thin = n.thin)
 
 pred2 <- summary(zc_val, quantiles = c(0.025, 0.5, 0.975))$quantiles
 pred2 <- cbind(pred2, "ntree" = unlist(lapply(data$ntree, function(x) 1:x)))
