@@ -75,7 +75,7 @@ g4 <- geom_hline(yintercept = unlist(d_ls[d_ls$species == "tree", 1:3]),
 #                label = c("A", "A,B,C", "B", "C,D", "D"), 
 #                size = 12)
 
-png("figures/figure_1.png", 10000/4, 7000/4, "px", res = 600/4)
+png("figures/Fig1.png", 10000, 7000, "px", res = 600)
 ggplot2:::print.ggplot(g1 + g2 + g3 + g4 + #g5 + 
                        theme_classic(45) + 
                        ylab("tree level alpha diversity") + xlab(""))
@@ -93,7 +93,7 @@ p3 <- geom_point(size = 3)
 p4 <- geom_errorbar(aes(ymin = X2.5., ymax = X97.5.), width = 0.2)
 p5 <- facet_grid(div_metric ~ ., scales = "free_y")
 
-png("figures/figure_2.png", 6000/4, 8000/4, "px", res = 600/4)
+png("figures/Fig2.png", 6000, 8000, "px", res = 600)
 ggplot2:::print.ggplot(p1 + p2 + p3 + p4 + p5 +
                        ylab("number/fraction of epiphytic lichen species") + 
                        xlab("number of tree species") +
@@ -105,8 +105,8 @@ dev.off()
 ## All percentages combined:
 
 ## Chose diversity index here:
-div <- "bdiv"
-# div <- "gdiv"
+# div <- "bdiv"
+div <- "gdiv"
 
 head(pred_perc)
 head(max_perc)
@@ -153,7 +153,7 @@ p2 <- geom_density(alpha = .2)
 P <- p1 + p2 + xlim(0, 100) + s1 + s2 + theme0()
 Q <- plot_grid(P, Q, align = "v", nrow = 2, rel_heights = c(1/5, 4/5))
 
-png(paste0("figures/lpsac_perc_quad_", div, ".png"), 8000/4, 8000/4, "px", res = 600/4)
+png(paste0("figures/lpsac_perc_quad_", div, ".png"), 4000, 4000, "px", res = 300)
 ggplot2:::print.ggplot(Q)
 dev.off()
   
@@ -177,7 +177,7 @@ R <- ggtern(droplevels(site_pred[site_pred$div_metric == div, ]),
   Rarrowlab("% pine") +
   theme_showarrows()
 
-png(paste0("figures/lpsac_perc_tern_", div, ".png"), 8000/4, 8000/4, "px", res = 600/4)
+png(paste0("figures/lpsac_perc_tern_", div, ".png"), 4000, 4000, "px", res = 300)
 R
 dev.off()
 
